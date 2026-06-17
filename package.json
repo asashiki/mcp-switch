@@ -1,0 +1,25 @@
+{
+  "name": "mcp-switch",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@9.15.2",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "dev": "concurrently -n gateway,console -c yellow,cyan \"pnpm --filter @mcp-switch/mcp-gateway dev\" \"pnpm --filter @mcp-switch/console-web dev\"",
+    "build": "pnpm --filter @mcp-switch/console-web build && pnpm --filter @mcp-switch/mcp-gateway build",
+    "build:services": "pnpm --filter @mcp-switch/console-web build && pnpm --filter @mcp-switch/mcp-gateway build",
+    "typecheck": "pnpm -r typecheck",
+    "smoke": "pnpm --filter @mcp-switch/mcp-gateway smoke",
+    "test": "pnpm --filter @mcp-switch/mcp-gateway test"
+  },
+  "devDependencies": {
+    "@types/node": "^24.6.0",
+    "concurrently": "^9.2.1",
+    "tsup": "^8.5.0",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.3",
+    "vite": "^7.1.9"
+  }
+}

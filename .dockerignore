@@ -1,0 +1,10 @@
+node_modules
+.pnpm-store
+.git
+.env
+.env.local
+apps/*/.env
+apps/*/.env.local
+apps/*/dist
+apps/*/data
+coverage

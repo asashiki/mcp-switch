@@ -1,0 +1,38 @@
+services:
+  mcp-switch:
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile
+      target: runtime
+    command: ["pnpm", "--filter", "@mcp-switch/mcp-gateway", "start"]
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      MCP_GATEWAY_HOST: ${MCP_GATEWAY_HOST:-0.0.0.0}
+      MCP_GATEWAY_PORT: ${MCP_GATEWAY_PORT:-4200}
+      MCP_AUTH_DB_PATH: ${MCP_AUTH_DB_PATH:-/data/mcp-switch.sqlite}
+      # Public base URL (e.g. https://mcp.example.com). When set, the gateway
+      # enables OAuth 2.1 + the management console; unset → anonymous /mcp.
+      MCP_PUBLIC_URL: ${MCP_PUBLIC_URL:-}
+      MCP_OAUTH_SCOPE: ${MCP_OAUTH_SCOPE:-tools:read tools:write}
+      MCP_CONSOLE_CORS_ORIGINS: ${MCP_CONSOLE_CORS_ORIGINS:-http://localhost:5173,http://localhost:3000}
+      # Optional: pre-seed upstream MCP servers as a JSON array (otherwise add via console).
+      REMOTE_MCP_SERVERS_JSON: ${REMOTE_MCP_SERVERS_JSON:-}
+    ports:
+      - "${MCP_GATEWAY_BIND_HOST:-127.0.0.1}:${MCP_GATEWAY_PORT:-4200}:${MCP_GATEWAY_PORT:-4200}"
+    volumes:
+      - mcp_switch_data:/data
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:4200/health').then((response)=>process.exit(response.ok?0:1)).catch(()=>process.exit(1))"
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  mcp_switch_data:

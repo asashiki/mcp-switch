@@ -1,0 +1,14 @@
+{
+  "files": [],
+  "references": [
+    {
+      "path": "./packages/config"
+    },
+    {
+      "path": "./packages/schemas"
+    },
+    {
+      "path": "./apps/mcp-gateway"
+    }
+  ]
+}

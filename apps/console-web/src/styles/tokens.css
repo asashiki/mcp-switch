@@ -1,0 +1,88 @@
+/* ============================================================
+   MCP Switch Console · design tokens
+   樱羽 Sakura palette
+   组件内只用这些 CSS 变量，禁止写死 hex / 任意圆角值。
+   ============================================================ */
+
+:root,
+[data-theme="light"] {
+  --bg:            #ffffff;
+  --bg-tint:       #fff2f9;
+  --bg-tint-2:     #e1e1fe;
+  --surface:       #ffffff;
+  --surface-raised:#fffafd;
+
+  --border:        #f3dce9;
+  --border-strong: #e9c4d9;
+
+  --text:          #3a3340;
+  --text-2:        #8a7d8f;
+  --text-3:        #b8aabb;
+
+  --accent:        #e96ba8;
+  --accent-soft:   #fdd9ec;
+  --accent-2:      #8b8bef;
+  --accent-2-soft: #e1e1fe;
+  --on-accent:     #ffffff;
+
+  /* 语义色：我们的控制台需要 ok / warn / err，规范没明示但和谐 */
+  --ok:            #4fb38a;
+  --ok-soft:       #d8f0e6;
+  --warn:          #f0a500;
+  --warn-soft:     #fdeac4;
+  --err:           #d04848;
+  --err-soft:      #f7d5d5;
+
+  --shadow: 0 1px 2px rgba(180,120,160,.06), 0 4px 16px rgba(180,120,160,.08);
+  --shadow-pop: 0 8px 24px rgba(180,120,160,.14);
+}
+
+[data-theme="dark"] {
+  --bg:            #17141d;
+  --bg-tint:       #221b26;
+  --bg-tint-2:     #1e1d2e;
+  --surface:       #1e1a24;
+  --surface-raised:#262130;
+  --border:        #332a3a;
+  --border-strong: #46394f;
+  --text:          #f0e9f2;
+  --text-2:        #a796ad;
+  --text-3:        #6f6178;
+  --accent:        #f288c0;
+  --accent-soft:   #3c2535;
+  --accent-2:      #a3a3f7;
+  --accent-2-soft: #28284a;
+  --on-accent:     #241420;
+
+  --ok:            #5fc89d;
+  --ok-soft:       #1c3329;
+  --warn:          #f5b73d;
+  --warn-soft:     #3a2d10;
+  --err:           #e36868;
+  --err-soft:      #3a1f1f;
+
+  --shadow: 0 1px 2px rgba(0,0,0,.3), 0 6px 20px rgba(0,0,0,.35);
+  --shadow-pop: 0 12px 32px rgba(0,0,0,.45);
+}
+
+:root {
+  --radius-s: 7px;
+  --radius-m: 10px;
+  --radius-l: 14px;
+
+  --font: "PingFang SC","Hiragino Sans","Yu Gothic UI","Noto Sans SC",
+          -apple-system,"Segoe UI",sans-serif;
+  --mono: "SF Mono","Cascadia Code",Consolas,monospace;
+
+  --skew: -12deg;
+
+  --stripe: repeating-linear-gradient(-55deg,
+            var(--accent-soft) 0 3px, transparent 3px 9px);
+
+  --t-display: 700 28px/1.25 var(--font);
+  --t-title:   700 19px/1.4  var(--font);
+  --t-body:    400 14px/1.6  var(--font);
+  --t-caption: 400 12px/1.5  var(--font);
+
+  --ease: .2s ease;
+}
