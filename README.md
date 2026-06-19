@@ -12,6 +12,8 @@ single, OAuth-secured endpoint — then exposes them to any AI that speaks MCP
 ![node](https://img.shields.io/badge/node-%E2%89%A524-3c873a)
 ![status](https://img.shields.io/badge/status-beta-8b8bef)
 
+**English** · [简体中文](README.zh-CN.md) · [日本語](README.ja.md)
+
 </div>
 
 ---
@@ -74,7 +76,7 @@ Then:
 
 ```bash
 docker compose -f infra/docker/compose.yaml exec mcp-switch \
-  node dist/cli/console-admin.js admin "your-password"
+  node dist/cli/console-admin.js set admin "your-password"
 ```
 
 ## Quick start (local dev)
@@ -139,6 +141,10 @@ All via `.env` (see [`.env.example`](.env.example)):
 | `MCP_OAUTH_SCOPE` | OAuth scopes advertised to clients |
 | `REMOTE_MCP_SERVERS_JSON` | Optional: pre-seed upstream servers instead of using the console |
 | `MCP_GATEWAY_BIND_HOST` | Bind `0.0.0.0` when running behind a reverse proxy |
+
+## Docs
+
+- 📖 [使用手册（图文，含截图位）](docs/manual.md) — step-by-step walkthrough of the console.
 
 ## Development
 

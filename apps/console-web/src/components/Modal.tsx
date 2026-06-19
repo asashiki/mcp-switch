@@ -1,4 +1,5 @@
 import { ReactNode, useEffect } from "react";
+import { useT } from "@/i18n";
 
 export default function Modal({
   open, title, sub, onClose, children, footer,
@@ -10,6 +11,7 @@ export default function Modal({
   children: ReactNode;
   footer?: ReactNode;
 }) {
+  const t = useT();
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
@@ -24,7 +26,7 @@ export default function Modal({
         <div className="modal-head">
           <h3 id="modal-title">{title}</h3>
           {sub && <span className="sub">{sub}</span>}
-          <button className="close" onClick={onClose} aria-label="关闭">✕</button>
+          <button className="close" onClick={onClose} aria-label={t("common.close")}>✕</button>
         </div>
         <div className="modal-body">{children}</div>
         {footer && <div className="modal-foot">{footer}</div>}

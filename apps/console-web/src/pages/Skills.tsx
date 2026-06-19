@@ -7,20 +7,23 @@ import Toggle from "@/components/Toggle";
 import VisibilityDropdown from "@/components/VisibilityDropdown";
 import Modal from "@/components/Modal";
 import { dragStart, dragEnd, dragOver, dragLeave, dragDrop } from "@/lib/drag";
+import { useT } from "@/i18n";
+import { localeTag } from "@/i18n/locales";
 
 // 可多选的过滤标签。三个维度：启用态(已启用/未启用) + 来源(本地/远程) + 读写(可读/写入)。
 // 同维度内 OR，跨维度 AND；全不选 = 显示全部。
 type FilterTag = "enabled" | "disabled" | "local" | "remote" | "read" | "write";
-const FILTER_TAGS: { key: FilterTag; label: string }[] = [
+const FILTER_TAGS: { key: FilterTag; labelKey: string }[] = [
   // 「已启用」标签去掉——进页面默认就是看启用的技能，留它冗余。
-  { key: "disabled", label: "未启用" },
-  { key: "local", label: "本地" },
-  { key: "remote", label: "远程" },
-  { key: "read", label: "可读" },
-  { key: "write", label: "写入" },
+  { key: "disabled", labelKey: "filter.disabled" },
+  { key: "local", labelKey: "filter.local" },
+  { key: "remote", labelKey: "filter.remote" },
+  { key: "read", labelKey: "filter.read" },
+  { key: "write", labelKey: "filter.write" },
 ];
 
 export default function SkillsPage() {
+  const t = useT();
   const skillsQ = useAsync(() => Skills.list(), []);
   const agentsQ = useAsync(() => Agents.list(), []);
   const groupsQ = useAsync(() => SkillGroups.list(), []);
@@ -126,7 +129,7 @@ export default function SkillsPage() {
       await Skills.setEnabled(id, enabled);
     } catch (e) {
       // 后端会在「远程服务未授权」时拒绝启用 → 提示用户先去授权。
-      alert(e instanceof Error ? e.message : "操作失败");
+      alert(e instanceof Error ? e.message : t("skills.enableFailed"));
     }
     skillsQ.reload();
   };
@@ -153,11 +156,11 @@ export default function SkillsPage() {
   // 渲染分组头部右侧的「一键开关」+ 折叠箭头（复用于三种分组）。
   const GroupControls = ({ gkey, sk }: { gkey: string; sk: Skill[] }) => (
     <div className="grp-controls">
-      <div className="grp-master" title="一键开关本组全部技能" onClick={e => e.stopPropagation()}>
+      <div className="grp-master" title={t("skills.groupMasterTitle")} onClick={e => e.stopPropagation()}>
         <Toggle on={groupAllOn(sk)} onChange={(v) => setGroupEnabled(sk, v)} />
       </div>
       <button className={`caret ${collapsed.has(gkey) ? "collapsed" : ""}`}
-        title={collapsed.has(gkey) ? "展开" : "折叠"} aria-label={collapsed.has(gkey) ? "展开" : "折叠"}
+        title={collapsed.has(gkey) ? t("skills.expand") : t("skills.collapseTitle")} aria-label={collapsed.has(gkey) ? t("skills.expand") : t("skills.collapseTitle")}
         onClick={e => { e.stopPropagation(); toggleCollapse(gkey); }}>
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
           <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
@@ -315,30 +318,30 @@ export default function SkillsPage() {
   return (
     <div className="frame">
       <PageHead
-        eyebrow="SKILLS · 技能"
-        title="技能注册表"
-        lede="把工具按你自己的场景组织成分组。默认对所有 agent 可见——展开下拉才能把某个 agent 排除掉。"
-        meta={<>{onCount} / {total} 启用<br/>UPDATED {new Date().toLocaleTimeString("zh-CN", { hour12: false, hour: "2-digit", minute: "2-digit" })}</>}
+        eyebrow={t("skills.eyebrow")}
+        title={t("skills.title")}
+        lede={t("skills.lede")}
+        meta={<>{t("skills.metaEnabled", { on: onCount, total })}<br/>UPDATED {new Date().toLocaleTimeString(localeTag(), { hour12: false, hour: "2-digit", minute: "2-digit" })}</>}
       />
 
       <div className="tools-bar">
-        <input className="search" placeholder="搜索技能 / id / 描述…"
+        <input className="search" placeholder={t("skills.search")}
           value={query} onChange={e => setQuery(e.target.value)} />
         <div className="filter-chips">
-          {FILTER_TAGS.map(({ key, label }) => (
+          {FILTER_TAGS.map(({ key, labelKey }) => (
             <button key={key} className={`chip ${filters.has(key) ? "active" : ""}`}
               onClick={() => toggleFilter(key)}>
-              {label}
+              {t(labelKey)}
             </button>
           ))}
         </div>
         <div className="right">
-          <button className="btn ghost" onClick={() => setMgmtOpen(true)}>管理分组</button>
+          <button className="btn ghost" onClick={() => setMgmtOpen(true)}>{t("skills.manageGroups")}</button>
         </div>
       </div>
 
-      {skillsQ.loading && <div className="card"><div className="card-body" style={{ color: "var(--text-3)" }}>载入技能中…</div></div>}
-      {skillsQ.error   && <div className="card"><div className="card-body" style={{ color: "var(--err)" }}>载入失败：{skillsQ.error.message}</div></div>}
+      {skillsQ.loading && <div className="card"><div className="card-body" style={{ color: "var(--text-3)" }}>{t("skills.loading")}</div></div>}
+      {skillsQ.error   && <div className="card"><div className="card-body" style={{ color: "var(--err)" }}>{t("skills.loadFailed", { msg: skillsQ.error.message })}</div></div>}
 
       {/* 用户自定义分组 */}
       {groupedView.groups.map((g, gi) => (
@@ -351,7 +354,7 @@ export default function SkillsPage() {
             onDragEnd={dragEnd}>
             <span className="handle" aria-hidden>⋮⋮</span>
             <span className="nm">{g.name}</span>
-            <span className="count">{g.skills.length} 项</span>
+            <span className="count">{t("skills.count", { n: g.skills.length })}</span>
             <GroupControls gkey={g.id} sk={g.skills} />
           </header>
 
@@ -361,7 +364,7 @@ export default function SkillsPage() {
             onDrop={dragDrop("skill", (id) => moveSkill(id, g.id, g.skills.length))}>
             {g.skills.length === 0 && (
               <div className="group-body empty">
-                把右上角搜索到的技能拖进来；或者把别的组里的技能拖过来。
+                {t("skills.emptyGroup")}
               </div>
             )}
             {g.skills.map((s, si) => (
@@ -391,9 +394,9 @@ export default function SkillsPage() {
             <span className="handle" aria-hidden style={{ opacity: .3 }}>⋮⋮</span>
             <span className="nm">{g.name}</span>
             <span className={`tag ${serverTransport.get(g.serverId) === "stdio" ? "line" : "b"}`} style={{ marginLeft: 8 }}>
-              {serverTransport.get(g.serverId) === "stdio" ? "本地" : "远程"} · 自动分组
+              {serverTransport.get(g.serverId) === "stdio" ? t("tag.local") : t("tag.remote")} · {t("skills.autoGrouped")}
             </span>
-            <span className="count">{g.skills.length} 项 · 拖到上面的分组里即可自定义归类</span>
+            <span className="count">{t("skills.dragToCustomize", { n: g.skills.length })}</span>
             <GroupControls gkey={`rmcp-${g.serverId}`} sk={g.skills} />
           </header>
           <div className={`group-body-wrap ${collapsed.has(`rmcp-${g.serverId}`) ? "collapsed" : ""}`}>
@@ -422,14 +425,14 @@ export default function SkillsPage() {
         onDrop={dragDrop("skill", (id) => dropToUngrouped(id, null))}>
         <header className="group-head">
           <span className="handle" aria-hidden style={{ opacity: .3 }}>⋮⋮</span>
-          <span className="nm" style={{ fontStyle: "italic", color: "var(--text-2)" }}>未归类</span>
-          <span className="count">{groupedView.ungrouped.length} 项 · 新加入的技能默认落在这里 · 可上下拖动排序</span>
+          <span className="nm" style={{ fontStyle: "italic", color: "var(--text-2)" }}>{t("skills.ungrouped")}</span>
+          <span className="count">{t("skills.ungroupedHint", { n: groupedView.ungrouped.length })}</span>
           <GroupControls gkey="__ungrouped__" sk={groupedView.ungrouped} />
         </header>
         <div className={`group-body-wrap ${collapsed.has("__ungrouped__") ? "collapsed" : ""}`}>
         <div className="group-body">
           {groupedView.ungrouped.length === 0 && (
-            <div className="group-body empty">所有技能都已归类 ✓</div>
+            <div className="group-body empty">{t("skills.allGrouped")}</div>
           )}
           {groupedView.ungrouped.map(s => (
             <SkillRow
@@ -472,6 +475,7 @@ function SkillRow({
   authPending: Set<string>;
   serverTransport: Map<string, "http" | "stdio">;
 }) {
+  const t = useT();
   // 远程服务尚未授权 → 不能启用（没 token，启用了也只会在调用时失败）。
   const needsAuth = skill.source === "remote-mcp" && !!skill.serverId && authPending.has(skill.serverId);
 
@@ -507,21 +511,21 @@ function SkillRow({
 
       <div className="desc-cell">
         <div ref={descRef} className={`desc ${descOpen ? "open" : "clamp"} ${!descOpen && descOverflow ? "masked" : ""}`}>
-          {skill.description ?? <em style={{ color: "var(--text-3)" }}>暂无描述</em>}
+          {skill.description ?? <em style={{ color: "var(--text-3)" }}>{t("skills.noDesc")}</em>}
         </div>
         {descOverflow && (
           <button className="desc-more" onClick={() => setDescOpen(v => !v)}>
-            {descOpen ? "收起" : "展开"}
+            {descOpen ? t("skills.collapse") : t("skills.expand")}
           </button>
         )}
       </div>
 
       <div className="tags">
-        {isRemote ? <span className="tag b">远程</span> : <span className="tag line">本地</span>}
+        {isRemote ? <span className="tag b">{t("tag.remote")}</span> : <span className="tag line">{t("tag.local")}</span>}
         {/* 读/写分类：系统能从工具的 readOnlyHint 判断（本地/远程通用）。写技能更敏感，默认关闭。 */}
-        {skill.readOnly === true && <span className="tag line">可读</span>}
-        {skill.readOnly === false && <span className="tag warn">写入</span>}
-        {needsAuth && <span className="tag err">需授权</span>}
+        {skill.readOnly === true && <span className="tag line">{t("tag.read")}</span>}
+        {skill.readOnly === false && <span className="tag warn">{t("tag.write")}</span>}
+        {needsAuth && <span className="tag err">{t("tag.needsAuth")}</span>}
       </div>
 
       <VisibilityDropdown
@@ -538,8 +542,8 @@ function SkillRow({
           disabled={needsAuth && !skill.enabled}
         />
         {needsAuth && !skill.enabled && (
-          <div style={{ marginTop: 6, fontSize: 11, color: "var(--text-3)" }} title="远程服务尚未授权">
-            需先授权
+          <div style={{ marginTop: 6, fontSize: 11, color: "var(--text-3)" }} title={t("skills.needAuthTitle")}>
+            {t("skills.needAuthFirst")}
           </div>
         )}
       </div>
@@ -559,13 +563,14 @@ function ManageGroupsModal({
   onAdd: (name: string) => void;
   onReorder: (gid: string, targetId: string) => void;
 }) {
+  const t = useT();
   const [newName, setNewName] = useState("");
 
   return (
-    <Modal open={open} onClose={onClose} title="管理分组" sub="drag · rename · delete"
+    <Modal open={open} onClose={onClose} title={t("skills.manageGroups")} sub={t("skills.manageSub")}
       footer={<>
-        <button className="btn ghost" onClick={onClose}>取消</button>
-        <button className="btn primary" onClick={onClose}>完成</button>
+        <button className="btn ghost" onClick={onClose}>{t("common.cancel")}</button>
+        <button className="btn primary" onClick={onClose}>{t("common.done")}</button>
       </>}>
       {groups.map(g => (
         <div className="grp-row" key={g.id}
@@ -578,24 +583,24 @@ function ManageGroupsModal({
           <span className="h" aria-hidden>⋮⋮</span>
           <span><input defaultValue={g.name}
             onBlur={e => { if (e.target.value !== g.name) onRename(g.id, e.target.value); }} /></span>
-          <span className="ct">{g.skillIds.length} 项</span>
+          <span className="ct">{t("skills.count", { n: g.skillIds.length })}</span>
           <button className="del" onClick={() => {
-            if (confirm(`删除分组「${g.name}」？里面的技能会回到「未归类」。`)) onRemove(g.id);
-          }}>删除</button>
+            if (confirm(t("skills.deleteGroupConfirm", { name: g.name }))) onRemove(g.id);
+          }}>{t("common.delete")}</button>
         </div>
       ))}
       <div className="add-grp">
-        <input placeholder="新分组名…" value={newName}
+        <input placeholder={t("skills.newGroupPlaceholder")} value={newName}
           onChange={e => setNewName(e.target.value)}
           onKeyDown={e => {
             if (e.key === "Enter" && newName.trim()) { onAdd(newName.trim()); setNewName(""); }
           }} />
         <button className="btn primary" onClick={() => {
           if (newName.trim()) { onAdd(newName.trim()); setNewName(""); }
-        }}>添加</button>
+        }}>{t("common.add")}</button>
       </div>
       <div className="hint-box">
-        删除分组不会删除技能，里面的技能会回到「未归类」。把技能拖到不同的组里就能改变归类。
+        {t("skills.manageHint")}
       </div>
     </Modal>
   );

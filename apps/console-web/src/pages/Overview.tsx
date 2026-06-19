@@ -3,11 +3,13 @@ import { Link } from "react-router-dom";
 import { Stats, Health, Audit } from "@/lib/api";
 import { useAsync } from "@/hooks/useAsync";
 import PageHead from "@/components/PageHead";
-import Sparkline from "@/components/Sparkline";
+import { useT } from "@/i18n";
+import { tStatic, localeTag } from "@/i18n/locales";
 
 type Range = "1h" | "24h" | "7d" | "30d";
 
 export default function Overview() {
+  const t = useT();
   const [range, setRange] = useState<Range>("24h");
 
   const stats = useAsync(() => Stats.range(range), [range]);
@@ -30,37 +32,37 @@ export default function Overview() {
   return (
     <div className="frame">
       <PageHead
-        eyebrow="OVERVIEW · 概览"
-        title="今日中枢"
-        lede="实时调用情况、工具使用热度、最近异常与系统健康一览。"
+        eyebrow={t("overview.eyebrow")}
+        title={t("overview.title")}
+        lede={t("overview.lede")}
         meta={
           <>
-            实时 · 每 30 秒自动刷新<br/>
-            {hasStats ? `截止 ${new Date().toLocaleTimeString("zh-CN", { hour12: false })}` : "载入统计中…"}
+            {t("overview.metaRefresh")}<br/>
+            {hasStats ? t("overview.asOf", { time: new Date().toLocaleTimeString(localeTag(), { hour12: false }) }) : t("overview.loadingStats")}
           </>
         }
       />
 
       {/* KPI */}
       <div className="kpi-grid">
-        <KPI label="本期调用" value={data?.totalCalls ?? "—"} unit="次"
+        <KPI label={t("overview.kpiCalls")} value={data?.totalCalls ?? "—"} unit={t("overview.unitTimes")}
              trend={data?.deltaVsPrev ? pctTrend(data.deltaVsPrev.totalCalls) : null}
-             trendLabel="较上期" />
-        <KPI label="P95 延迟" value={data?.p95LatencyMs ?? "—"} unit="ms"
+             trendLabel={t("overview.vsPrev")} />
+        <KPI label={t("overview.kpiP95")} value={data?.p95LatencyMs ?? "—"} unit="ms"
              trend={data?.deltaVsPrev ? msTrend(-data.deltaVsPrev.p95LatencyMs) : null}
-             trendLabel="较上期" />
-        <KPI label="错误 / 拦截" value={data ? (data.errorCalls + data.unauthorizedCalls) : "—"} unit="次"
+             trendLabel={t("overview.vsPrev")} />
+        <KPI label={t("overview.kpiErrors")} value={data ? (data.errorCalls + data.unauthorizedCalls) : "—"} unit={t("overview.unitTimes")}
              trend={data?.deltaVsPrev ? pctTrend(data.deltaVsPrev.errorCalls, true) : null}
-             trendLabel="较上期" />
-        <KPI label="活跃 Agent" value={data ? data.byAgent.filter(a => a.count > 0).length : "—"} unit="个"
-             trendLabel={data ? `共 ${data.byAgent.length} 个登记` : ""} deco />
+             trendLabel={t("overview.vsPrev")} />
+        <KPI label={t("overview.kpiActiveAgents")} value={data ? data.byAgent.filter(a => a.count > 0).length : "—"} unit={t("overview.unitCount")}
+             trendLabel={data ? t("overview.registered", { n: data.byAgent.length }) : ""} deco />
       </div>
 
       {/* traffic + top tools */}
       <div className="ov-grid">
         <div className="card deco">
           <div className="card-head">
-            <h3>调用量</h3>
+            <h3>{t("overview.trafficTitle")}</h3>
             <span className="sub">requests over time</span>
             <span className="right">
               <div className="seg">
@@ -73,7 +75,7 @@ export default function Overview() {
           </div>
           <div className="card-body">
             {!hasStats ? (
-              <Placeholder>{stats.error ? `统计载入失败：${stats.error.message}` : "统计载入中…"}</Placeholder>
+              <Placeholder>{stats.error ? t("overview.statsFailed", { msg: stats.error.message }) : t("overview.statsLoading")}</Placeholder>
             ) : (
               <TrafficChart points={data!.timeline.map(p => p.n)} />
             )}
@@ -81,10 +83,10 @@ export default function Overview() {
         </div>
 
         <div className="card">
-          <div className="card-head"><h3>工具排行</h3><span className="sub">top tools</span></div>
+          <div className="card-head"><h3>{t("overview.topToolsTitle")}</h3><span className="sub">top tools</span></div>
           <div className="card-body">
             {!hasStats ? (
-              <Placeholder>{stats.error ? `统计载入失败：${stats.error.message}` : "统计载入中…"}</Placeholder>
+              <Placeholder>{stats.error ? t("overview.statsFailed", { msg: stats.error.message }) : t("overview.statsLoading")}</Placeholder>
             ) : (
               <ol className="top-tools">
                 {data!.topTools.slice(0, 8).map((t, i) => {
@@ -112,10 +114,10 @@ export default function Overview() {
       {/* agent share + anomalies */}
       <div className="ov-grid">
         <div className="card">
-          <div className="card-head"><h3>Agent 占比</h3><span className="sub">who's using what</span></div>
+          <div className="card-head"><h3>{t("overview.agentShareTitle")}</h3><span className="sub">who's using what</span></div>
           <div className="card-body">
             {!hasStats ? (
-              <Placeholder>{stats.error ? `统计载入失败：${stats.error.message}` : "统计载入中…"}</Placeholder>
+              <Placeholder>{stats.error ? t("overview.statsFailed", { msg: stats.error.message }) : t("overview.statsLoading")}</Placeholder>
             ) : (
               <div className="agent-share">
                 {data!.byAgent.slice(0, 6).map((a, i) => (
@@ -140,12 +142,12 @@ export default function Overview() {
 
         <div className="card deco">
           <div className="card-head">
-            <h3>最近异常</h3><span className="sub">recent issues</span>
-            <span className="right"><Link className="btn ghost sm" to="/audit">去审计 →</Link></span>
+            <h3>{t("overview.anomaliesTitle")}</h3><span className="sub">recent issues</span>
+            <span className="right"><Link className="btn ghost sm" to="/audit">{t("overview.toAudit")}</Link></span>
           </div>
           <div className="card-body">
-            {audit.loading && !audit.data ? <Placeholder>载入中…</Placeholder> :
-             recentAnomalies.length === 0 ? <Placeholder>暂无异常 ☘</Placeholder> :
+            {audit.loading && !audit.data ? <Placeholder>{t("common.loading")}</Placeholder> :
+             recentAnomalies.length === 0 ? <Placeholder>{t("overview.noAnomalies")}</Placeholder> :
             <div className="anom-list">
               {recentAnomalies.map((e, i) => (
                 <div className="anom" key={i}>
@@ -159,7 +161,7 @@ export default function Overview() {
                     {e.agent_id && <span className="note">agent · {e.agent_id}</span>}
                   </div>
                   <span className={`tag ${e.success === 0 ? "err" : "warn"}`}>
-                    {e.success === 0 ? "失败" : `${e.latency_ms ?? "?"}ms`}
+                    {e.success === 0 ? t("common.failed") : `${e.latency_ms ?? "?"}ms`}
                   </span>
                 </div>
               ))}
@@ -170,10 +172,10 @@ export default function Overview() {
 
       {/* system health */}
       <div className="card deco" style={{ marginTop: 16 }}>
-        <div className="card-head"><h3>系统健康</h3><span className="sub">gateway · core · connectors</span></div>
+        <div className="card-head"><h3>{t("overview.healthTitle")}</h3><span className="sub">gateway · connectors</span></div>
         {!health.data ? (
           <div className="card-body">
-            <Placeholder>{health.error ? `健康状态载入失败：${health.error.message}` : "健康状态载入中…"}</Placeholder>
+            <Placeholder>{health.error ? t("overview.healthFailed", { msg: health.error.message }) : t("overview.healthLoading")}</Placeholder>
           </div>
         ) : (
           <div className="sys-grid">
@@ -215,13 +217,13 @@ function KPI({ label, value, unit, trend, trendLabel, deco }: {
 }
 
 function pctTrend(v: number, badIsUp = false) {
-  if (Math.abs(v) < 0.005) return { dir: "neutral" as const, text: "持平" };
+  if (Math.abs(v) < 0.005) return { dir: "neutral" as const, text: tStatic("trend.flat") };
   const up = v > 0;
   const dir = up ? (badIsUp ? "down" : "up") : (badIsUp ? "up" : "down");
   return { dir: dir as "up" | "down", text: `${up ? "↑" : "↓"} ${Math.abs(v * 100).toFixed(1)}%` };
 }
 function msTrend(deltaMs: number) {
-  if (Math.abs(deltaMs) < 1) return { dir: "neutral" as const, text: "持平" };
+  if (Math.abs(deltaMs) < 1) return { dir: "neutral" as const, text: tStatic("trend.flat") };
   const better = deltaMs > 0; // 这里我们传入的是 -delta（即变快是 +），所以正数=变快
   return {
     dir: (better ? "up" : "down") as "up" | "down",
@@ -229,7 +231,7 @@ function msTrend(deltaMs: number) {
   };
 }
 function fmtTime(s: string) {
-  try { return new Date(s).toLocaleTimeString("zh-CN", { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" }); }
+  try { return new Date(s).toLocaleTimeString(localeTag(), { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" }); }
   catch { return s; }
 }
 function fmtDay(s: string) {
@@ -238,22 +240,15 @@ function fmtDay(s: string) {
     const today = new Date(); today.setHours(0,0,0,0);
     const dd = new Date(d); dd.setHours(0,0,0,0);
     const diff = (today.getTime() - dd.getTime()) / 86400000;
-    if (diff < 1) return "今天";
-    if (diff < 2) return "昨天";
-    return `${d.getMonth()+1} 月 ${d.getDate()} 日`;
+    if (diff < 1) return tStatic("day.today");
+    if (diff < 2) return tStatic("day.yesterday");
+    return d.toLocaleDateString(localeTag(), { month: "short", day: "numeric" });
   } catch { return ""; }
 }
 function prettyAction(a: string) {
-  const map: Record<string, string> = {
-    mcp_unauthorized: "未授权访问",
-    mcp_request: "MCP 请求",
-    tool_call: "工具调用",
-    token_refreshed: "令牌刷新",
-    console_login: "控制台登录",
-    console_api_login: "控制台登录",
-    remote_rediscover: "远程发现",
-  };
-  return map[a] ?? a;
+  const key = a === "console_api_login" ? "console_login" : a;
+  const known = ["mcp_unauthorized", "mcp_request", "tool_call", "token_refreshed", "console_login", "remote_rediscover"];
+  return known.includes(key) ? tStatic(`action.${key}`) : a;
 }
 
 function Placeholder({ children }: { children: React.ReactNode }) {
@@ -275,7 +270,7 @@ function HealthItem({ nm, status, meta }: { nm: string; status: "ok" | "warn" | 
 }
 
 function TrafficChart({ points }: { points: number[] }) {
-  if (!points.length) return <Placeholder>暂无数据</Placeholder>;
+  if (!points.length) return <Placeholder>{tStatic("overview.noData")}</Placeholder>;
   const w = 700;
   const h = 200;
   const max = Math.max(...points);

@@ -4,8 +4,11 @@ import { useAsync } from "@/hooks/useAsync";
 import type { Agent } from "@/types/api";
 import PageHead from "@/components/PageHead";
 import Modal from "@/components/Modal";
+import { useT } from "@/i18n";
+import { tStatic, localeTag } from "@/i18n/locales";
 
 export default function AgentsPage() {
+  const t = useT();
   const agentsQ = useAsync(() => Agents.list(), []);
   const skillsQ = useAsync(() => Skills.list(), []);
   const [addOpen, setAddOpen] = useState(false);
@@ -15,7 +18,7 @@ export default function AgentsPage() {
   const skillCount = skillsQ.data?.skills.filter(s => s.enabled).length ?? 0;
 
   const regen = async (a: Agent) => {
-    if (!confirm(`确定为 ${a.displayName} 轮换一次密钥？旧密钥会立即吊销。`)) return;
+    if (!confirm(t("agents.regenConfirm", { name: a.displayName }))) return;
     const r = await Agents.regen(a.agentId);
     setSecret({ agentId: a.agentId, secret: r.secret });
     agentsQ.reload();
@@ -25,7 +28,7 @@ export default function AgentsPage() {
     agentsQ.reload();
   };
   const remove = async (a: Agent) => {
-    if (!confirm(`删除 Agent「${a.displayName}」？\n它的密钥、令牌和技能可见性配置都会一并清除，使用该身份的客户端将立即断开。`)) return;
+    if (!confirm(t("agents.removeConfirm", { name: a.displayName }))) return;
     await Agents.remove(a.agentId);
     agentsQ.reload();
   };
@@ -39,14 +42,14 @@ export default function AgentsPage() {
   return (
     <div className="frame">
       <PageHead
-        eyebrow="AGENTS · 受權者"
-        title="登记的 AI 客户端"
-        lede="每个 agent 拥有独立 OAuth 密钥。技能可见性请在 「技能」 页每行下拉里调整。"
-        actions={<button className="btn primary" onClick={() => setAddOpen(true)}>+ 登记 Agent</button>}
+        eyebrow={t("agents.eyebrow")}
+        title={t("agents.title")}
+        lede={t("agents.lede")}
+        actions={<button className="btn primary" onClick={() => setAddOpen(true)}>{t("agents.register")}</button>}
       />
 
-      {agentsQ.loading && <Hint>载入中…</Hint>}
-      {agentsQ.error   && <Hint err>载入失败：{agentsQ.error.message}</Hint>}
+      {agentsQ.loading && <Hint>{t("common.loading")}</Hint>}
+      {agentsQ.error   && <Hint err>{t("skills.loadFailed", { msg: agentsQ.error.message })}</Hint>}
 
       <div className="agents-grid">
         {list.map((a, i) => (
@@ -60,17 +63,17 @@ export default function AgentsPage() {
                 <span className="id">{a.agentId}</span>
               </div>
               <div className="meta">
-                <span><span className="k">状态</span>{a.enabled ? "启用" : "禁用"}</span>
-                <span><span className="k">最近</span>{fmtTs(a.lastUsedAt) ?? "从未"}</span>
-                <span><span className="k">可见</span><span className="v tools">{skillCount} 项工具</span></span>
+                <span><span className="k">{t("agents.statusK")}</span>{a.enabled ? t("agents.enabled") : t("agents.disabled")}</span>
+                <span><span className="k">{t("agents.lastK")}</span>{fmtTs(a.lastUsedAt) ?? t("agents.never")}</span>
+                <span><span className="k">{t("agents.visibleK")}</span><span className="v tools">{t("agents.toolsN", { n: skillCount })}</span></span>
               </div>
             </div>
             <div className="actions">
-              <button className="btn ghost sm" onClick={() => regen(a)}>轮换密钥</button>
+              <button className="btn ghost sm" onClick={() => regen(a)}>{t("agents.regen")}</button>
               {a.enabled
-                ? <button className="btn secondary sm" onClick={() => setEnabled(a, false)}>禁用</button>
-                : <button className="btn secondary sm" onClick={() => setEnabled(a, true)}>启用</button>}
-              <button className="btn danger sm" onClick={() => remove(a)}>删除</button>
+                ? <button className="btn secondary sm" onClick={() => setEnabled(a, false)}>{t("agents.disable")}</button>
+                : <button className="btn secondary sm" onClick={() => setEnabled(a, true)}>{t("agents.enable")}</button>}
+              <button className="btn danger sm" onClick={() => remove(a)}>{t("common.delete")}</button>
             </div>
           </article>
         ))}
@@ -81,12 +84,12 @@ export default function AgentsPage() {
 
       {/* 一次性密钥展示 */}
       <Modal open={!!secret} onClose={() => setSecret(null)}
-        title="新的一次性密钥" sub="WRITE IT DOWN NOW"
-        footer={<button className="btn primary" onClick={() => setSecret(null)}>我已抄录</button>}>
+        title={t("agents.secretTitle")} sub="WRITE IT DOWN NOW"
+        footer={<button className="btn primary" onClick={() => setSecret(null)}>{t("agents.secretWroteDown")}</button>}>
         {secret && (
           <>
             <div className="warn-text">
-              这串密钥只显示这一次。关闭此窗口后无法再次显示。
+              {t("agents.secretWarn")}
             </div>
             <div className="secret-box">
               <span className="lab">{secret.agentId}</span>
@@ -94,7 +97,7 @@ export default function AgentsPage() {
             </div>
             <button className="btn ghost sm" style={{ marginTop: 10 }}
               onClick={() => { navigator.clipboard.writeText(secret.secret); }}>
-              复制到剪贴板
+              {t("agents.copy")}
             </button>
           </>
         )}
@@ -122,33 +125,35 @@ function fmtTs(s: string | null): string | null {
   try {
     const d = new Date(s);
     const today = new Date();
+    const hm = d.toLocaleTimeString(localeTag(), { hour12: false, hour: "2-digit", minute: "2-digit" });
     if (d.toDateString() === today.toDateString())
-      return `今天 ${d.toLocaleTimeString("zh-CN", { hour12: false, hour: "2-digit", minute: "2-digit" })}`;
-    return `${d.getMonth()+1}·${d.getDate()} ${d.toLocaleTimeString("zh-CN", { hour12: false, hour: "2-digit", minute: "2-digit" })}`;
+      return tStatic("agents.today").replace("{time}", hm);
+    return `${d.getMonth()+1}·${d.getDate()} ${hm}`;
   } catch { return s; }
 }
 
 function AddAgentModal({
   open, onClose, onCreate,
 }: { open: boolean; onClose: () => void; onCreate: (id: string, name?: string) => void }) {
+  const t = useT();
   const [agentId, setId] = useState("");
   const [name, setName] = useState("");
   return (
-    <Modal open={open} onClose={onClose} title="登记新 Agent"
+    <Modal open={open} onClose={onClose} title={t("agents.addTitle")}
       sub="OAUTH IDENTITY"
       footer={<>
-        <button className="btn ghost" onClick={onClose}>取消</button>
+        <button className="btn ghost" onClick={onClose}>{t("common.cancel")}</button>
         <button className="btn primary" disabled={!agentId.trim()}
-          onClick={() => onCreate(agentId, name)}>创建</button>
+          onClick={() => onCreate(agentId, name)}>{t("common.create")}</button>
       </>}>
       <div className="field" style={{ marginBottom: 14 }}>
-        <label>Agent ID（slug · 例：claude-android）</label>
+        <label>{t("agents.agentIdLabel")}</label>
         <input value={agentId} onChange={e => setId(e.target.value.replace(/\s+/g, "-").toLowerCase())} placeholder="claude-android" />
       </div>
       <div className="field">
-        <label>显示名（可选）</label>
+        <label>{t("agents.displayNameLabel")}</label>
         <input value={name} onChange={e => setName(e.target.value)} placeholder="Claude on Android" />
-        <div className="help">创建后会返回一次性密钥，仅显示一次，请立刻保管。</div>
+        <div className="help">{t("agents.addHelp")}</div>
       </div>
     </Modal>
   );

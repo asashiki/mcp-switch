@@ -3,11 +3,13 @@ import { Remote } from "@/lib/api";
 import { useAsync } from "@/hooks/useAsync";
 import type { RemoteServer } from "@/types/api";
 import PageHead from "@/components/PageHead";
+import { useT } from "@/i18n";
 
 // 接入表单对齐 claude.ai 连接器：Name + URL 必填；OAuth Client ID/Secret 可选。
 // 三种鉴权自动适配：①开放服务器直连 ②OAuth 动态注册（DCR）→ 跳转授权
 // ③OAuth 预注册客户端（填 ID/Secret）→ 跳转授权。另保留静态 Bearer Token（高级）。
 export default function RemotePage() {
+  const t = useT();
   const q = useAsync(() => Remote.list(), []);
   const [form, setForm] = useState({
     name: "", transport: "http" as "http" | "stdio", url: "",
@@ -39,8 +41,8 @@ export default function RemotePage() {
     const p = new URLSearchParams(window.location.search);
     const oauth = p.get("oauth");
     if (!oauth) return;
-    if (oauth === "ok") setMsg(`授权完成 ✓ 已重新发现「${p.get("server") ?? ""}」的工具，去技能页启用它们。`);
-    else setMsg(`授权失败：${p.get("msg") ?? "未知错误"}`);
+    if (oauth === "ok") setMsg(t("remote.msgAuthOk", { server: p.get("server") ?? "" }));
+    else setMsg(t("remote.msgAuthFail", { msg: p.get("msg") ?? t("common.unknownError") }));
     window.history.replaceState(null, "", window.location.pathname);
     q.reload();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -54,10 +56,10 @@ export default function RemotePage() {
         window.location.href = r.authorizeUrl; // 跳外部授权页，回来落在 ?oauth=ok
         return;
       }
-      setMsg("已有有效授权 ✓");
+      setMsg(t("remote.msgHasAuth"));
       q.reload();
     } catch (e: any) {
-      setMsg(`发起授权失败：${e?.message ?? "未知错误"}`);
+      setMsg(t("remote.msgStartAuthFail", { msg: e?.message ?? t("common.unknownError") }));
     } finally { setBusy(false); }
   };
 
@@ -86,7 +88,7 @@ export default function RemotePage() {
       const obj = JSON.parse(jsonText);
       const servers = obj?.mcpServers ?? obj;
       const entries = Object.entries(servers ?? {});
-      if (!entries.length) throw new Error("没找到 mcpServers 条目");
+      if (!entries.length) throw new Error(t("remote.msgNoEntries"));
       const [key, cfgRaw] = entries[0] as [string, any];
       const cfg = cfgRaw ?? {};
       const remoteUrl = cfg.serverUrl ?? cfg.url;
@@ -99,16 +101,16 @@ export default function RemotePage() {
           argsText: Array.isArray(cfg.args) ? cfg.args.map(String).join("\n") : "",
           envText,
         }));
-        setMsg(`已识别为本地 stdio 服务器「${key}」，已填入命令/参数/环境变量。`);
+        setMsg(t("remote.msgStdioDetected", { key }));
       } else if (remoteUrl) {
         const headersText = Object.entries(cfg.headers ?? {}).map(([k, v]) => `${k}: ${v}`).join("\n");
         setForm(f => ({ ...f, name: f.name || key, transport: "http", url: String(remoteUrl), headers: headersText }));
-        setMsg(`已识别为远程服务器「${key}」，已填入 URL${headersText ? "/请求头" : ""}。`);
+        setMsg(t("remote.msgHttpDetected", { key, headers: headersText ? t("remote.headersFrag") : "" }));
       } else {
-        throw new Error("既没有 command 也没有 serverUrl/url");
+        throw new Error(t("remote.msgNoCmdUrl"));
       }
     } catch (e: any) {
-      setMsg(`JSON 解析失败：${e?.message ?? "格式不对"}`);
+      setMsg(t("remote.msgJsonFail", { msg: e?.message ?? t("remote.msgBadJson") }));
     }
   };
 
@@ -135,19 +137,19 @@ export default function RemotePage() {
       });
       resetForm(); setJsonText("");
       if (r.needsAuth) {
-        setMsg("已添加，该服务器要求 OAuth 授权，正在跳转…");
+        setMsg(t("remote.msgAddedNeedsAuth"));
         await authorize(r.id);
         return;
       }
-      setMsg(`已添加 · 发现 ${r.discovered} 个工具`);
+      setMsg(t("remote.msgAddedDiscovered", { n: r.discovered }));
       q.reload();
     } catch (e: any) {
-      setMsg(e?.message ?? "添加失败");
+      setMsg(e?.message ?? t("remote.msgAddFail"));
     } finally { setBusy(false); }
   };
 
   const remove = async (id: string, name: string) => {
-    if (!confirm(`删除远程服务器「${name}」？这会同时清理其孤儿技能。`)) return;
+    if (!confirm(t("remote.deleteConfirm", { name }))) return;
     await Remote.remove(id);
     q.reload();
   };
@@ -156,9 +158,9 @@ export default function RemotePage() {
     setBusy(true); setMsg(null);
     try {
       const r = await Remote.rediscover();
-      setMsg(`重新发现完成 · 共 ${r.seeded} 个工具`);
+      setMsg(t("remote.msgRediscovered", { n: r.seeded }));
       q.reload();
-    } catch (e: any) { setMsg(e?.message ?? "重新发现失败"); }
+    } catch (e: any) { setMsg(e?.message ?? t("remote.msgRediscoverFail")); }
     finally { setBusy(false); }
   };
 
@@ -167,22 +169,22 @@ export default function RemotePage() {
   return (
     <div className="frame">
       <PageHead
-        eyebrow="CONNECT · 接入"
-        title="MCP 接入"
-        lede={<>把第三方 MCP 并入本中枢——支持<strong>远程 URL 中转</strong>和<strong>本机 stdio 托管</strong>两种方式。接入的工具会出现在技能页（默认按服务器自动成组）。</>}
+        eyebrow={t("remote.eyebrow")}
+        title={t("remote.title")}
+        lede={<>{t("remote.ledePre")}<strong>{t("remote.ledeRemote")}</strong>{t("remote.ledeAnd")}<strong>{t("remote.ledeStdio")}</strong>{t("remote.ledePost")}</>}
         actions={<>
-          <button className="btn ghost" onClick={rediscover} disabled={busy}>↻ 重新发现</button>
+          <button className="btn ghost" onClick={rediscover} disabled={busy}>{t("remote.rediscover")}</button>
         </>}
       />
 
       {msg && <div className="hint-box" style={{ marginBottom: 14 }}>{msg}</div>}
 
-      {q.loading && <div className="card"><div className="card-body" style={{ color: "var(--text-3)" }}>载入中…</div></div>}
+      {q.loading && <div className="card"><div className="card-body" style={{ color: "var(--text-3)" }}>{t("common.loading")}</div></div>}
 
       {servers.length === 0 && !q.loading && (
         <div className="card"><div className="card-body" style={{
           color: "var(--text-3)", textAlign: "center", padding: 32,
-        }}>尚未接入任何远程服务器。在下面填写后点「添加并发现」。</div></div>
+        }}>{t("remote.empty")}</div></div>
       )}
 
       {servers.map(s => (
@@ -192,16 +194,16 @@ export default function RemotePage() {
               <span className="nm">{s.name}</span>
               <span className="id">{s.id}</span>
               <span className={`tag ${s.status === "online" || s.status === "ok" ? "ok" : s.needsAuth ? "warn" : "err"}`}>
-                {s.status === "online" || s.status === "ok" ? "ONLINE" : s.needsAuth ? "待授权" : s.status.toUpperCase()}
+                {s.status === "online" || s.status === "ok" ? "ONLINE" : s.needsAuth ? t("remote.pendingAuth") : s.status.toUpperCase()}
               </span>
-              <span className="tag line">{s.transport === "stdio" ? "本机 stdio" : authModeLabel(s)}</span>
+              <span className="tag line">{s.transport === "stdio" ? t("remote.localStdio") : authModeLabel(s, t)}</span>
             </div>
             <div className="url">{s.url}</div>
             <div className="meta">
-              <span><span className="k">工具数</span>{s.toolCount}</span>
+              <span><span className="k">{t("remote.toolCountK")}</span>{s.toolCount}</span>
             </div>
             {s.lastError && !s.needsAuth && (
-              <div className="err"><strong>错误：</strong>{s.lastError}</div>
+              <div className="err"><strong>{t("remote.errorPrefix")}</strong>{s.lastError}</div>
             )}
             {showCfg === s.id && (
               <pre className="cfg-json">{serverConfigJson(s)}</pre>
@@ -209,37 +211,37 @@ export default function RemotePage() {
           </div>
           <div className="ops">
             {(s.needsAuth || (s.authMode === "oauth" && !s.oauthAuthorized)) && (
-              <button className="btn primary sm" disabled={busy} onClick={() => authorize(s.id)}>去授权 →</button>
+              <button className="btn primary sm" disabled={busy} onClick={() => authorize(s.id)}>{t("remote.authorize")}</button>
             )}
             {s.authMode === "oauth" && s.oauthAuthorized && !s.needsAuth && (
-              <button className="btn ghost sm" disabled={busy} onClick={() => authorize(s.id)} title="刷新/重新授权">重新授权</button>
+              <button className="btn ghost sm" disabled={busy} onClick={() => authorize(s.id)} title={t("remote.reauthorizeTitle")}>{t("remote.reauthorize")}</button>
             )}
             <button className="btn ghost sm" onClick={() => setShowCfg(c => c === s.id ? null : s.id)}>
-              {showCfg === s.id ? "隐藏配置" : "查看配置"}
+              {showCfg === s.id ? t("remote.hideConfig") : t("remote.viewConfig")}
             </button>
-            <button className="btn danger sm" onClick={() => remove(s.id, s.name)}>删除</button>
+            <button className="btn danger sm" onClick={() => remove(s.id, s.name)}>{t("common.delete")}</button>
           </div>
         </article>
       ))}
 
       {/* 添加表单 —— 支持远程 URL（claude.ai 连接器）+ 本机 stdio 托管 */}
       <section className="add-remote">
-        <h3>添加 MCP 服务器</h3>
+        <h3>{t("remote.addTitle")}</h3>
 
         {/* ① 粘贴 JSON 自动填表（推荐入口，视觉上突出） */}
         <div className="import-panel">
           <div className="step">
             <span className="step-no">1</span>
             <div>
-              <div className="step-title">粘贴 JSON 配置，自动填好下面的表单（推荐）</div>
-              <div className="step-sub">直接复制 MCP 文档里的 <code>mcpServers</code> 配置——自动识别远程 URL / 本机 stdio。</div>
+              <div className="step-title">{t("remote.step1Title")}</div>
+              <div className="step-sub">{t("remote.step1SubA")}<code>mcpServers</code>{t("remote.step1SubB")}</div>
             </div>
           </div>
           <textarea className="import-box" rows={9} value={jsonText} onChange={e => setJsonText(e.target.value)}
             placeholder={form.transport === "stdio" ? STDIO_EXAMPLE : HTTP_EXAMPLE} />
           <div className="import-actions">
-            <button className="btn primary sm" type="button" onClick={importJson} disabled={!jsonText.trim()}>解析并填到下方 ↓</button>
-            {jsonText.trim() && <button className="btn ghost sm" type="button" onClick={() => setJsonText("")}>清空</button>}
+            <button className="btn primary sm" type="button" onClick={importJson} disabled={!jsonText.trim()}>{t("remote.parseFill")}</button>
+            {jsonText.trim() && <button className="btn ghost sm" type="button" onClick={() => setJsonText("")}>{t("common.clear")}</button>}
           </div>
         </div>
 
@@ -247,68 +249,68 @@ export default function RemotePage() {
         <div className="step" style={{ marginTop: 22, marginBottom: 12 }}>
           <span className="step-no">2</span>
           <div>
-            <div className="step-title">核对 / 手动填写，然后添加</div>
-            <div className="step-sub">先选传输方式，再填对应字段。上面导入后这里会自动带出来。</div>
+            <div className="step-title">{t("remote.step2Title")}</div>
+            <div className="step-sub">{t("remote.step2Sub")}</div>
           </div>
         </div>
 
         <div className="seg" style={{ marginBottom: 14 }}>
           <button type="button" className={`seg-btn ${form.transport === "http" ? "on" : ""}`} onClick={() => setTransport("http")}>
-            远程 URL（中转）
+            {t("remote.segHttp")}
           </button>
           <button type="button" className={`seg-btn ${form.transport === "stdio" ? "on" : ""}`} onClick={() => setTransport("stdio")}>
-            本机 stdio（在本服务器托管）
+            {t("remote.segStdio")}
           </button>
         </div>
 
         <div className="form-grid">
           <div className="field">
-            <label>名称 *</label>
-            <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="例：Notion MCP" />
+            <label>{t("remote.nameLabel")}</label>
+            <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder={t("remote.namePlaceholder")} />
           </div>
 
           {form.transport === "http" ? <>
             <div className="field">
-              <label>Remote MCP server URL *</label>
+              <label>{t("remote.urlLabel")}</label>
               <input value={form.url} onChange={e => setForm(f => ({ ...f, url: e.target.value }))} placeholder="https://.../mcp" />
             </div>
             <div className="field">
-              <label>OAuth Client ID（可选）</label>
-              <input value={form.clientId} onChange={e => setForm(f => ({ ...f, clientId: e.target.value }))} placeholder="预注册客户端 ID" />
+              <label>{t("remote.clientIdLabel")}</label>
+              <input value={form.clientId} onChange={e => setForm(f => ({ ...f, clientId: e.target.value }))} placeholder={t("remote.clientIdPlaceholder")} />
             </div>
             <div className="field">
-              <label>OAuth Client Secret（可选）</label>
-              <input type="password" value={form.clientSecret} onChange={e => setForm(f => ({ ...f, clientSecret: e.target.value }))} placeholder="配合 Client ID 使用" />
+              <label>{t("remote.clientSecretLabel")}</label>
+              <input type="password" value={form.clientSecret} onChange={e => setForm(f => ({ ...f, clientSecret: e.target.value }))} placeholder={t("remote.clientSecretPlaceholder")} />
             </div>
             <div className="field full">
-              <label>Bearer Token（可选）</label>
-              <input type="password" value={form.bearerToken} onChange={e => setForm(f => ({ ...f, bearerToken: e.target.value }))} placeholder="静态 token 服务器用，如 sk-..." />
+              <label>{t("remote.bearerLabel")}</label>
+              <input type="password" value={form.bearerToken} onChange={e => setForm(f => ({ ...f, bearerToken: e.target.value }))} placeholder={t("remote.bearerPlaceholder")} />
             </div>
             <div className="field full">
-              <label>自定义请求头（可选）</label>
+              <label>{t("remote.headersLabel")}</label>
               <textarea rows={4} value={form.headers}
                 onChange={e => setForm(f => ({ ...f, headers: e.target.value }))}
-                placeholder={"每行一个 Key: Value\n例（context7）：\nCONTEXT7_API_KEY: ctx7_xxx"}
+                placeholder={t("remote.headersPlaceholder")}
                 style={{ fontFamily: "var(--mono)", fontSize: 12.5, resize: "vertical" }} />
             </div>
           </> : <>
             <div className="field">
-              <label>命令 command *</label>
+              <label>{t("remote.commandLabel")}</label>
               <input value={form.command} onChange={e => setForm(f => ({ ...f, command: e.target.value }))}
                 placeholder="npx / uvx / python" style={{ fontFamily: "var(--mono)" }} />
             </div>
             <div className="field full">
-              <label>参数 args（可选）</label>
+              <label>{t("remote.argsLabel")}</label>
               <textarea rows={4} value={form.argsText}
                 onChange={e => setForm(f => ({ ...f, argsText: e.target.value }))}
-                placeholder={"每行一个参数\n例：\n-y\n@modelcontextprotocol/server-name"}
+                placeholder={t("remote.argsPlaceholder")}
                 style={{ fontFamily: "var(--mono)", fontSize: 12.5, resize: "vertical" }} />
             </div>
             <div className="field full">
-              <label>环境变量 env（可选）</label>
+              <label>{t("remote.envLabel")}</label>
               <textarea rows={4} value={form.envText}
                 onChange={e => setForm(f => ({ ...f, envText: e.target.value }))}
-                placeholder={"每行一个 Key: Value\n例：\nAPI_KEY: your-key\nBASE_URL: https://api.example.com"}
+                placeholder={t("remote.envPlaceholder")}
                 style={{ fontFamily: "var(--mono)", fontSize: 12.5, resize: "vertical" }} />
             </div>
           </>}
@@ -316,14 +318,12 @@ export default function RemotePage() {
 
         <div className="form-actions">
           <span style={{ color: "var(--text-3)", fontSize: 12.5, marginRight: "auto" }}>
-            {form.transport === "http"
-              ? "开放服务器直接连；要求 OAuth 的服务器添加后会自动跳转授权登录。"
-              : "在本 VPS 上拉起子进程托管，工具远程暴露给已连接的 AI。需服务器已装好对应运行时（node/npx、uv/uvx、python 等）。"}
+            {form.transport === "http" ? t("remote.hintHttp") : t("remote.hintStdio")}
           </span>
           <button className="btn primary"
             disabled={busy || !form.name.trim() || (form.transport === "http" ? !form.url.trim() : !form.command.trim())}
             onClick={submit}>
-            {busy ? "处理中…" : "添加并发现"}
+            {busy ? t("remote.processing") : t("remote.addDiscover")}
           </button>
         </div>
       </section>
@@ -354,11 +354,11 @@ const STDIO_EXAMPLE = `{
   }
 }`;
 
-function authModeLabel(s: RemoteServer): string {
+function authModeLabel(s: RemoteServer, t: (k: string) => string): string {
   switch (s.authMode) {
-    case "oauth": return s.oauthAuthorized ? "OAuth · 已授权" : "OAuth";
+    case "oauth": return s.oauthAuthorized ? t("remote.authOauthAuthorized") : "OAuth";
     case "bearer": return "Bearer";
     case "bearer-env": return "Bearer(env)";
-    default: return s.needsAuth ? "OAuth" : "开放";
+    default: return s.needsAuth ? "OAuth" : t("remote.authOpen");
   }
 }

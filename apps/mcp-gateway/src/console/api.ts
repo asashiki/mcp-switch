@@ -95,7 +95,7 @@ export function registerConsoleApi(
         const s = servers.find((x) => x.id === serverId);
         if (s && (s.needsAuth || (s.authMode === "oauth" && !s.oauthAuthorized))) {
           reply.code(409);
-          return { error: `远程服务「${s.name}」尚未完成授权，请先在「远程接入」页面点击去授权后再启用。` };
+          return { error: `Server "${s.name}" isn't authorized yet — authorize it on the Connect page before enabling its tools.` };
         }
       } catch { /* best-effort: if status check fails, don't block */ }
     }
@@ -364,7 +364,7 @@ export function registerConsoleApi(
       for (const c of cs.connectors) {
         connectors.push({
           id: c.id, name: c.name, status: statusMap[c.status],
-          note: c.lastError ?? (c.lastSuccessAt ? `最近成功 ${c.lastSuccessAt}` : undefined)
+          note: c.lastError ?? (c.lastSuccessAt ? `last ok ${c.lastSuccessAt}` : undefined)
         });
       }
     } catch { /* registry unavailable → no connectors */ }

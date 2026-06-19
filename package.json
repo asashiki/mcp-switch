@@ -2,6 +2,10 @@
   "name": "mcp-switch",
   "version": "0.1.0",
   "private": true,
+  "description": "Self-hosted gateway that aggregates local (stdio) and remote (HTTP) MCP servers behind one OAuth-secured endpoint.",
+  "keywords": ["mcp", "model-context-protocol", "gateway", "oauth", "ai", "claude", "chatgpt", "aggregator"],
+  "homepage": "https://github.com/asashiki/mcp-switch",
+  "license": "MIT",
   "packageManager": "pnpm@9.15.2",
   "engines": {
     "node": ">=24.0.0"

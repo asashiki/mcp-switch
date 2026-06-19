@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { Auth, TokenStore, UserStore } from "@/lib/api";
+import { useT } from "@/i18n";
 import Login from "@/pages/Login";
 import Shell from "@/components/Shell";
 import Overview from "@/pages/Overview";
@@ -14,6 +15,7 @@ type AuthState = "unknown" | "in" | "out";
 export default function App() {
   const [auth, setAuth] = useState<AuthState>("unknown");
   const nav = useNavigate();
+  const t = useT();
 
   useEffect(() => {
     const tk = TokenStore.get();
@@ -23,7 +25,7 @@ export default function App() {
       .catch(() => { TokenStore.clear(); setAuth("out"); });
   }, []);
 
-  if (auth === "unknown") return <div style={{ padding: 40, color: "var(--text-3)" }}>载入中…</div>;
+  if (auth === "unknown") return <div style={{ padding: 40, color: "var(--text-3)" }}>{t("common.loading")}</div>;
 
   if (auth === "out") {
     return (

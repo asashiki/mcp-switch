@@ -21,8 +21,8 @@ async function main() {
         const pw = password ?? randomBytes(12).toString("base64url");
         store.setConsoleAdmin(username, pw);
         console.log(`\n  ✅ console admin: ${username}`);
-        if (!password) console.log(`     password (随机生成，请保存): ${pw}`);
-        else console.log(`     password 已设置。`);
+        if (!password) console.log(`     password (random — save it now): ${pw}`);
+        else console.log(`     password set.`);
         break;
       }
       case "list":

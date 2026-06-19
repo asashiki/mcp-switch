@@ -23,9 +23,9 @@ const MINIMAL_AGENTS: { agentId: string; displayName: string }[] = [
 function printSecret(agentId: string, secret: string | null) {
   if (secret) {
     console.log(`\n  ✅ ${agentId}`);
-    console.log(`     secret (一次性，请立即保存): ${secret}`);
+    console.log(`     secret (shown once — save it now): ${secret}`);
   } else {
-    console.log(`  ↻ ${agentId} 已存在，未改动（用 regen 轮换密钥）`);
+    console.log(`  ↻ ${agentId} already exists, unchanged (use regen to rotate the secret)`);
   }
 }
 
@@ -41,7 +41,7 @@ async function main() {
           const res = store.upsertAgent(a.agentId, a.displayName);
           printSecret(a.agentId, res.secret);
         }
-        console.log("\n密钥只显示这一次。授权时在 consent 页面输入对应 secret。");
+        console.log("\nSecrets are shown only once. Enter the matching secret on the consent page when authorizing.");
         break;
       }
       case "add": {
@@ -57,7 +57,7 @@ async function main() {
         if (!agentId) { console.error("usage: regen <agent_id>"); process.exit(1); }
         const secret = store.regenerateSecret(agentId);
         if (!secret) { console.error(`agent not found: ${agentId}`); process.exit(1); }
-        console.log(`\n  ✅ ${agentId} 新密钥（一次性）: ${secret}`);
+        console.log(`\n  ✅ ${agentId} new secret (shown once): ${secret}`);
         break;
       }
       case "enable":

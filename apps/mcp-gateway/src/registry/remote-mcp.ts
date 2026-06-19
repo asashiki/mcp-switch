@@ -390,7 +390,7 @@ export function createRemoteMcpRegistry(options: {
         lastSeenAt: seenAt,
         lastSuccessAt: previous?.lastSuccessAt ?? null,
         lastError: needsAuth
-          ? "服务器要求 OAuth 授权——在控制台点「去授权」完成登录。"
+          ? "This server requires OAuth — click \"Authorize\" in the console to sign in."
           : error instanceof Error
             ? error.message
             : "Failed to connect to remote MCP server.",
@@ -443,7 +443,7 @@ export function createRemoteMcpRegistry(options: {
       const state = randomUUID();
       // Persist pending state up-front; also proves this is a DB-managed row.
       if (!persist(serverId, { state, redirectUri })) {
-        throw new Error("OAuth 仅支持控制台添加的服务器（env 配置的服务器无处存 token）。");
+        throw new Error("OAuth is only supported for console-added servers (env-defined servers have nowhere to persist a token).");
       }
       let authorizeUrl: URL | null = null;
       const provider = makeOauthProvider(

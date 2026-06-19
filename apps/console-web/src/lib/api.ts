@@ -8,6 +8,7 @@ import type {
   RemoteServer, SkillGroup, StatsRange, HealthOverview,
   LoginRequest, LoginResponse, MeResponse,
 } from "@/types/api";
+import { tStatic } from "@/i18n/locales";
 
 // ---- 配置 ------------------------------------------------------------------
 // 生产部署：把前端构建产物放在 mcp-gateway 同源下，BASE 留空走相对路径
@@ -64,12 +65,12 @@ async function request<T>(
       body: body === undefined ? undefined : JSON.stringify(body),
     });
   } catch (e) {
-    throw new ApiError(0, "网络错误，请检查连接", e);
+    throw new ApiError(0, tStatic("api.networkError"), e);
   }
 
   if (res.status === 401) {
     TokenStore.clear();
-    throw new ApiError(401, "登录已过期");
+    throw new ApiError(401, tStatic("api.sessionExpired"));
   }
 
   let payload: unknown = null;

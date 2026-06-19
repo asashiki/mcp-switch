@@ -45,7 +45,7 @@ export function createMcpGatewayServer(
     const entries: Entry[] = (opts?.remoteTools ?? []).map((rt) => ({
       id: rt.skillId,
       title: rt.title,
-      group: groupNames?.get(rt.skillId) ?? "未分组"
+      group: groupNames?.get(rt.skillId) ?? "Ungrouped"
     }));
     const header =
       "MCP Switch — a self-hosted MCP aggregation gateway. The tools below are " +
@@ -61,10 +61,10 @@ export function createMcpGatewayServer(
       byGroup.set(e.group, arr);
     }
     const groupOrder = [...byGroup.keys()].sort((a, b) =>
-      a === "未分组" ? 1 : b === "未分组" ? -1 : a.localeCompare(b, "zh"));
+      a === "Ungrouped" ? 1 : b === "Ungrouped" ? -1 : a.localeCompare(b));
     const lines = groupOrder.map((g) => {
-      const tools = byGroup.get(g)!.map((e) => `${e.id} (${e.title})`).join("、");
-      return `【${g}】${tools}`;
+      const tools = byGroup.get(g)!.map((e) => `${e.id} (${e.title})`).join(", ");
+      return `[${g}] ${tools}`;
     });
     return [
       header,

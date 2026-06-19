@@ -33,13 +33,13 @@ function consentPage(opts: {
   const errBlock = opts.error
     ? `<div class="err">${htmlEscape(opts.error)}</div>`
     : "";
-  // 樱羽 Sakura 配色（与控制台 SPA 同一套 token，light/dark 随系统）。
+  // Sakura palette (same tokens as the console SPA; light/dark follows the OS).
   return `<!doctype html>
-<html lang="zh">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>MCP Switch 授权</title>
+<title>MCP Switch — Authorize</title>
 <style>
   :root {
     color-scheme: light dark;
@@ -57,7 +57,7 @@ function consentPage(opts: {
     }
   }
   * { box-sizing: border-box; }
-  body { font-family:"PingFang SC","Hiragino Sans","Noto Sans SC",system-ui,sans-serif;
+  body { font-family:system-ui,-apple-system,"Segoe UI","PingFang SC","Hiragino Sans","Noto Sans",sans-serif;
          margin:0; min-height:100vh; padding:2.4rem 1rem; color:var(--text);
          background:
            radial-gradient(1200px 500px at 50% -10%, var(--accent-soft), transparent 60%),
@@ -107,29 +107,29 @@ function consentPage(opts: {
         <span>connection request</span>
       </div>
     </div>
-    <h1>把外部 AI 接入你的技能中枢</h1>
-    <p class="sub">下面这个客户端想以你的某个 Agent 身份连接。确认后，它就能调用你在控制台开放给该 Agent 的技能。</p>
+    <h1>Connect an AI to your tool hub</h1>
+    <p class="sub">The client below wants to connect as one of your agents. Once you approve, it can call the tools you've exposed to that agent in the console.</p>
     ${errBlock}
     <div class="panel">
-      <div class="row"><span class="k">客户端</span><span class="v">${htmlEscape(opts.clientName)}</span></div>
-      <div class="row"><span class="k">回调地址</span><span class="v">${htmlEscape(opts.redirectHost)}</span></div>
+      <div class="row"><span class="k">Client</span><span class="v">${htmlEscape(opts.clientName)}</span></div>
+      <div class="row"><span class="k">Redirect</span><span class="v">${htmlEscape(opts.redirectHost)}</span></div>
     </div>
     <form method="POST" action="/oauth/approve">
       <input type="hidden" name="pending" value="${htmlEscape(opts.pendingId)}">
       <div class="ctrl">
-        <label class="field" for="agent_id">以哪个 Agent 身份接入</label>
+        <label class="field" for="agent_id">Connect as which agent</label>
         <select id="agent_id" name="agent_id" required>${agentOptions}</select>
       </div>
       <div class="ctrl">
-        <label class="field" for="agent_secret">该 Agent 的密钥</label>
+        <label class="field" for="agent_secret">That agent's secret</label>
         <input id="agent_secret" name="agent_secret" type="password" autocomplete="off" required placeholder="amcp_sk_...">
       </div>
       <div class="actions">
-        <button class="deny" type="submit" name="decision" value="deny">拒绝</button>
-        <button class="approve" type="submit" name="decision" value="approve">确认授权</button>
+        <button class="deny" type="submit" name="decision" value="deny">Deny</button>
+        <button class="approve" type="submit" name="decision" value="approve">Authorize</button>
       </div>
     </form>
-    <div class="foot">技能可见性可随时在控制台「技能」页按 Agent 调整。</div>
+    <div class="foot">You can adjust per-agent tool visibility anytime on the console's Skills page.</div>
   </div>
 </body>
 </html>`;
@@ -252,7 +252,7 @@ export function registerOAuthRoutes(server: FastifyInstance, store: AuthStore, c
     const pending = q.pending ? store.getPending(q.pending) : null;
     if (!pending) {
       reply.code(400).type("text/html");
-      return "<p>授权请求已过期或无效，请在客户端重新发起连接。</p>";
+      return "<p>This authorization request is invalid or has expired. Please start the connection again from your client.</p>";
     }
     let redirectHost = pending.redirectUri;
     try { redirectHost = new URL(pending.redirectUri).host; } catch { /* keep raw */ }
@@ -274,7 +274,7 @@ export function registerOAuthRoutes(server: FastifyInstance, store: AuthStore, c
     const pending = body.pending ? store.getPending(body.pending) : null;
     if (!pending) {
       reply.code(400).type("text/html");
-      return "<p>授权请求已过期，请重新发起。</p>";
+      return "<p>This authorization request has expired. Please start again.</p>";
     }
 
     const buildRedirect = (params: Record<string, string>) => {
@@ -302,7 +302,7 @@ export function registerOAuthRoutes(server: FastifyInstance, store: AuthStore, c
         redirectHost: (() => { try { return new URL(pending.redirectUri).host; } catch { return pending.redirectUri; } })(),
         scope: pending.scope,
         agents,
-        error: "Agent 不存在、已禁用，或密钥不正确。"
+        error: "That agent doesn't exist, is disabled, or the secret is incorrect."
       });
     }
 

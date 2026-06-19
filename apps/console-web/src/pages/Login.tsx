@@ -1,7 +1,9 @@
 import { useState, FormEvent } from "react";
 import { Auth, TokenStore, UserStore, ApiError } from "@/lib/api";
+import { useT } from "@/i18n";
 
 export default function Login({ onSuccess }: { onSuccess: () => void }) {
+  const t = useT();
   const [username, setUser] = useState("admin");
   const [password, setPwd] = useState("");
   const [loading, setLoading] = useState(false);
@@ -17,7 +19,7 @@ export default function Login({ onSuccess }: { onSuccess: () => void }) {
       UserStore.set(r.username);
       onSuccess();
     } catch (e) {
-      const msg = e instanceof ApiError ? e.message : "登录失败";
+      const msg = e instanceof ApiError ? e.message : t("login.failed");
       setErr(msg);
     } finally {
       setLoading(false);
@@ -33,13 +35,10 @@ export default function Login({ onSuccess }: { onSuccess: () => void }) {
 
         <div>
           <h1 className="hero">
-            为你的 AI 助理，<br/>
-            建一处 <span className="hl">安静的工坊</span>。
+            {t("login.heroPre")}<br/>
+            {t("login.heroMid")}<span className="hl">{t("login.heroHl")}</span>{t("login.heroPost")}
           </h1>
-          <p className="sub">
-            把工具、密钥与权限整理成一处中枢，供任意 AI 安全调用。
-            浅仪式 · 浅色为主，印象色只在该出现的地方出现。
-          </p>
+          <p className="sub">{t("login.sub")}</p>
         </div>
 
         <div className="colo">
@@ -52,16 +51,16 @@ export default function Login({ onSuccess }: { onSuccess: () => void }) {
       <section className="login-right">
         <form className="login-form" onSubmit={submit}>
           <div className="eyebrow">SIGN&nbsp;IN</div>
-          <h2>进入控制台</h2>
-          <p>用你的管理员凭据登录。会话有效期 7 天。</p>
+          <h2>{t("login.enterConsole")}</h2>
+          <p>{t("login.enterSub")}</p>
 
           <div className="field">
-            <label htmlFor="u">用户名</label>
+            <label htmlFor="u">{t("login.username")}</label>
             <input id="u" autoComplete="username" value={username}
               onChange={e => setUser(e.target.value)} placeholder="admin" />
           </div>
           <div className="field">
-            <label htmlFor="p">口令</label>
+            <label htmlFor="p">{t("login.password")}</label>
             <input id="p" type="password" autoComplete="current-password"
               value={password} onChange={e => setPwd(e.target.value)}
               placeholder="••••••••••••" />
@@ -70,9 +69,9 @@ export default function Login({ onSuccess }: { onSuccess: () => void }) {
           {err && <div className="warn-text" style={{ marginTop: 12 }}>{err}</div>}
 
           <button className="btn primary" type="submit" disabled={loading}>
-            {loading ? "正在登录…" : "登 录"}
+            {loading ? t("login.signingIn") : t("login.signInBtn")}
           </button>
-          <div className="note">令牌仅保存在浏览器本地，登出即清除。</div>
+          <div className="note">{t("login.tokenNote")}</div>
         </form>
       </section>
     </div>

@@ -1,18 +1,20 @@
-import { ReactNode, useEffect, useState } from "react";
+import { ReactNode, useEffect, useRef, useState } from "react";
 import { NavLink } from "react-router-dom";
 import { Health, UserStore } from "@/lib/api";
+import { useI18n, LANGS, type Lang } from "@/i18n";
 
 const NAV = [
-  { to: "/",        label: "概览"      },
-  { to: "/skills",  label: "技能"      },
-  { to: "/agents",  label: "Agents"   },
-  { to: "/remote",  label: "接入"      },
-  { to: "/audit",   label: "审计"      },
+  { to: "/",        key: "nav.overview" },
+  { to: "/skills",  key: "nav.skills"   },
+  { to: "/agents",  key: "nav.agents"   },
+  { to: "/remote",  key: "nav.remote"   },
+  { to: "/audit",   key: "nav.audit"    },
 ];
 
 export default function Shell({
   children, onLogout,
 }: { children: ReactNode; onLogout: () => void }) {
+  const { t, lang, setLang } = useI18n();
   const [mobOpen, setMobOpen] = useState(false);
   const [theme, setTheme] = useState<"light" | "dark">(() => {
     const saved = localStorage.getItem("mcp-switch.theme");
@@ -41,8 +43,8 @@ export default function Shell({
 
   const user = UserStore.get() ?? "—";
   const healthLabel =
-    health === "ok"   ? "全部在线" :
-    health === "warn" ? "部分预警" : "存在异常";
+    health === "ok"   ? t("header.allOnline") :
+    health === "warn" ? t("header.partial") : t("header.issues");
 
   return (
     <>
@@ -50,14 +52,14 @@ export default function Shell({
         <div className="topbar-inner">
           <div className="brand">
             MCP Switch<span style={{ color: "var(--accent)" }}>.</span>
-            <small>CONSOLE</small>
+            <small>{t("header.console")}</small>
           </div>
 
           <nav className="nav-tabs">
             {NAV.map(n => (
               <NavLink key={n.to} to={n.to} end={n.to === "/"}
                 className={({ isActive }) => isActive ? "active" : ""}>
-                {n.label}
+                {t(n.key)}
               </NavLink>
             ))}
           </nav>
@@ -68,7 +70,8 @@ export default function Shell({
             <span className={`health-pill ${health === "ok" ? "" : health}`}>
               <span className="dot" /> {healthLabel}
             </span>
-            <button className="icon-btn" title="切换主题"
+            <LangSwitcher lang={lang} setLang={setLang} title={t("header.language")} />
+            <button className="icon-btn" title={t("header.theme")}
               onClick={() => setTheme(t => t === "light" ? "dark" : "light")}>
               {theme === "light" ? "◐" : "◑"}
             </button>
@@ -76,7 +79,7 @@ export default function Shell({
               <span className="ava">{user.slice(0, 1).toUpperCase()}</span>
               <span className="nm">{user}</span>
             </span>
-            <button className="icon-btn" title="登出" onClick={onLogout}>↩</button>
+            <button className="icon-btn" title={t("header.logout")} onClick={onLogout}>↩</button>
             <button className="mob-menu-btn" onClick={() => setMobOpen(o => !o)} aria-label="menu">
               {mobOpen ? "✕" : "☰"}
             </button>
@@ -88,7 +91,7 @@ export default function Shell({
             <NavLink key={n.to} to={n.to} end={n.to === "/"}
               onClick={() => setMobOpen(false)}
               className={({ isActive }) => isActive ? "active" : ""}>
-              {n.label}
+              {t(n.key)}
             </NavLink>
           ))}
         </div>
@@ -96,5 +99,33 @@ export default function Shell({
 
       <main>{children}</main>
     </>
+  );
+}
+
+function LangSwitcher({ lang, setLang, title }: { lang: Lang; setLang: (l: Lang) => void; title: string }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [open]);
+  const current = LANGS.find(l => l.code === lang) ?? LANGS[0];
+  return (
+    <div className="lang-switch" ref={ref}>
+      <button className="icon-btn" title={title} aria-label={title} onClick={() => setOpen(o => !o)}>
+        {current.code.toUpperCase()}
+      </button>
+      <div className={`lang-dd ${open ? "open" : ""}`} role="menu">
+        {LANGS.map(l => (
+          <button key={l.code} role="menuitemradio" aria-checked={l.code === lang}
+            className={l.code === lang ? "on" : ""}
+            onClick={() => { setLang(l.code); setOpen(false); }}>
+            {l.label}
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }

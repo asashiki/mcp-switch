@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { Agent } from "@/types/api";
+import { useT } from "@/i18n";
 
 /**
  * 单个技能的「对哪些 agent 可见」下拉。
@@ -15,6 +16,7 @@ export default function VisibilityDropdown({
   onChange: (next: Set<string>) => void;
   disabled?: boolean;
 }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -38,9 +40,9 @@ export default function VisibilityDropdown({
   const allHidden = onCount === 0;
 
   const label =
-    disabled ? "技能未启用" :
-    allHidden ? "全部隐藏" :
-    partial ? `${onCount} / ${total} 可见` : "全部可见";
+    disabled ? t("vis.skillDisabled") :
+    allHidden ? t("vis.allHidden") :
+    partial ? t("vis.partial", { on: onCount, total }) : t("vis.allVisible");
 
   const toggleAgent = (id: string) => {
     const next = new Set(visibleIds);
@@ -63,8 +65,8 @@ export default function VisibilityDropdown({
       </button>
       <div className={`vis-dd ${open ? "open" : ""}`}>
         <div className="dh">
-          对哪些 AGENT 可见
-          <span className="all" onClick={selectAll}>全选</span>
+          {t("vis.header")}
+          <span className="all" onClick={selectAll}>{t("vis.selectAll")}</span>
         </div>
         {agents.map(a => {
           const on = visibleIds.has(a.agentId);
@@ -78,8 +80,8 @@ export default function VisibilityDropdown({
         })}
         <div className="df">
           {partial
-            ? `${total - onCount} 个 agent 看不见这个工具。`
-            : "未来登记的新 agent 默认包含。"}
+            ? t("vis.partialFoot", { n: total - onCount })
+            : t("vis.allFoot")}
         </div>
       </div>
     </div>

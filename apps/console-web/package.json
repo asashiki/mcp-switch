@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "MCP Switch 控制台前端 · 樱羽 Sakura（构建产物输出到 mcp-gateway/console-web-dist）",
+  "description": "MCP Switch console — management SPA (build output goes to mcp-gateway/console-web-dist).",
   "scripts": {
     "dev": "vite",
     "build": "vite build",

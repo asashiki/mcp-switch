@@ -3,6 +3,8 @@ import { Audit } from "@/lib/api";
 import { useAsync } from "@/hooks/useAsync";
 import type { AuditEntry } from "@/types/api";
 import PageHead from "@/components/PageHead";
+import { useT } from "@/i18n";
+import { tStatic, localeTag } from "@/i18n/locales";
 
 type Filter = "all" | "errors" | "login";
 
@@ -18,6 +20,7 @@ interface Session {
 }
 
 export default function AuditPage() {
+  const t = useT();
   const q = useAsync(() => Audit.list(150), []);
   const [filter, setFilter] = useState<Filter>("all");
   const [agent, setAgent]   = useState<string>("all");
@@ -46,38 +49,38 @@ export default function AuditPage() {
   return (
     <div className="frame">
       <PageHead
-        eyebrow="AUDIT · 起居註"
-        title="审计日志"
-        lede="每一次客户端连接都被折叠成一个「会话」——里面包含一次 token 刷新和若干工具调用。异常会被高亮。"
-        meta={<>最近 {entries.length} 条<br/>UPDATED {new Date().toLocaleTimeString("zh-CN", { hour12: false, hour: "2-digit", minute: "2-digit" })}</>}
+        eyebrow={t("audit.eyebrow")}
+        title={t("audit.title")}
+        lede={t("audit.lede")}
+        meta={<>{t("audit.recentN", { n: entries.length })}<br/>UPDATED {new Date().toLocaleTimeString(localeTag(), { hour12: false, hour: "2-digit", minute: "2-digit" })}</>}
       />
 
       <div className="audit-bar">
         {([
-          ["all", "全部会话"],
-          ["errors", "仅异常"],
-          ["login", "登录事件"],
-        ] as [Filter, string][]).map(([k, label]) => (
+          ["all", "audit.filterAll"],
+          ["errors", "audit.filterErrors"],
+          ["login", "audit.filterLogin"],
+        ] as [Filter, string][]).map(([k, labelKey]) => (
           <button key={k} className={`chip ${filter === k ? "active" : ""}`}
-            onClick={() => setFilter(k)}>{label}</button>
+            onClick={() => setFilter(k)}>{t(labelKey)}</button>
         ))}
 
         <div className="seg" style={{ marginLeft: 6 }}>
-          <button className={agent === "all" ? "on" : ""} onClick={() => setAgent("all")}>全部 Agent</button>
+          <button className={agent === "all" ? "on" : ""} onClick={() => setAgent("all")}>{t("audit.allAgents")}</button>
           {allAgents.slice(0, 4).map(a =>
             <button key={a} className={agent === a ? "on" : ""} onClick={() => setAgent(a)}>{a}</button>
           )}
         </div>
 
         <div className="right">
-          <input className="search" placeholder="搜索工具 / 详情…"
+          <input className="search" placeholder={t("audit.searchPlaceholder")}
             value={search} onChange={e => setSearch(e.target.value)}
             style={{ width: 240 }} />
         </div>
       </div>
 
-      {q.loading && <Hint>载入审计中…</Hint>}
-      {q.error   && <Hint err>载入失败：{q.error.message}</Hint>}
+      {q.loading && <Hint>{t("audit.loading")}</Hint>}
+      {q.error   && <Hint err>{t("audit.loadFailed", { msg: q.error.message })}</Hint>}
 
       {byDay.map(({ day, label, weekday, sessions, stat }) => (
         <section className="day-block" key={day}>
@@ -92,7 +95,7 @@ export default function AuditPage() {
       ))}
 
       {byDay.length === 0 && !q.loading && (
-        <Hint>没有匹配的会话。试试调整筛选条件。</Hint>
+        <Hint>{t("audit.noMatch")}</Hint>
       )}
     </div>
   );
@@ -107,15 +110,16 @@ function Hint({ children, err }: { children: React.ReactNode; err?: boolean }) {
 }
 
 function SessionCard({ session }: { session: Session }) {
+  const t = useT();
   const { startAt, endAt, agent, bad, entries: items, toolCalls } = session;
   const lat = items.map(e => e.latency_ms ?? 0).filter(n => n > 0).sort((a, b) => a - b);
   const p95 = lat.length ? lat[Math.floor(lat.length * 0.95)] : null;
 
   const sumLine = bad
-    ? `${items.length} 次未授权访问被拦截。`
+    ? t("audit.sumBlocked", { n: items.length })
     : agent
-      ? `${agent} 连接，进行了 ${items.length} 次操作。`
-      : `控制台事件 · ${items[0]?.action ?? ""}。`;
+      ? t("audit.sumConnected", { agent, n: items.length })
+      : t("audit.sumConsole", { action: items[0]?.action ?? "" });
 
   return (
     <div className={`session ${bad ? "bad" : ""}`}>
@@ -139,7 +143,7 @@ function SessionCard({ session }: { session: Session }) {
         </div>
       </div>
       <div className="right-meta">
-        {items.length} 调用<br/>
+        {t("audit.callsN", { n: items.length })}<br/>
         {p95 ? `P95 ${p95}ms` : ""}
       </div>
     </div>
@@ -185,9 +189,9 @@ function displayCall(e: AuditEntry): string {
     return e.detail ? e.detail : e.action;
   }
   if (e.tool_name) return e.tool_name;
-  if (e.action === "token_refreshed") return "token 刷新";
-  if (e.action === "console_login" || e.action === "console_api_login") return "登录";
-  if (e.action === "remote_rediscover") return "远程发现";
+  if (e.action === "token_refreshed") return tStatic("audit.callTokenRefresh");
+  if (e.action === "console_login" || e.action === "console_api_login") return tStatic("audit.callLogin");
+  if (e.action === "remote_rediscover") return tStatic("audit.callRemoteDiscover");
   return e.action;
 }
 
@@ -209,7 +213,7 @@ function groupByDay(sessions: Session[]) {
       return {
         day, label, weekday: wd,
         sessions: ss,
-        stat: `${ss.length} 会话 · ${calls} 调用 · ${bad} 异常`,
+        stat: tStatic("audit.statLine").replace("{sessions}", String(ss.length)).replace("{calls}", String(calls)).replace("{bad}", String(bad)),
       };
     });
 }
@@ -218,14 +222,14 @@ function dayLabel(d: Date) {
   const today = new Date(); today.setHours(0,0,0,0);
   const x = new Date(d); x.setHours(0,0,0,0);
   const diff = (today.getTime() - x.getTime()) / 86400000;
-  if (diff === 0) return "今天";
-  if (diff === 1) return "昨天";
+  if (diff === 0) return tStatic("day.today");
+  if (diff === 1) return tStatic("day.yesterday");
   return `${d.getMonth()+1}·${String(d.getDate()).padStart(2,"0")}`;
 }
 
 function fmtTimeShort(s: string) {
   try {
-    return new Date(s).toLocaleTimeString("zh-CN", { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    return new Date(s).toLocaleTimeString(localeTag(), { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" });
   } catch { return s; }
 }
 function durationSec(a: string, b: string) {
