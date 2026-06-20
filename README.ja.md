@@ -41,7 +41,7 @@ MCP Switch はその間に入ります：
 
 ## アーキテクチャ
 
-**単一サービス**（`:4200`）＋ それがホストするコンソール SPA：
+**単一サービス**（`:4577`）＋ それがホストするコンソール SPA：
 
 | 構成要素 | 役割 |
 |---|---|
@@ -64,8 +64,8 @@ docker compose -f infra/docker/compose.yaml --env-file .env up -d --build
 
 そのあと：
 
-- ヘルスチェック：`curl http://127.0.0.1:4200/health`
-- コンソール：`http://127.0.0.1:4200/console` を開く（先にパスワード設定。下記参照）
+- ヘルスチェック：`curl http://127.0.0.1:4577/health`
+- コンソール：`http://127.0.0.1:4577/console` を開く（先にパスワード設定。下記参照）
 
 > リバースプロキシ越し？ `.env` で `MCP_PUBLIC_URL` と `MCP_GATEWAY_BIND_HOST=0.0.0.0` を設定。
 
@@ -81,7 +81,7 @@ docker compose -f infra/docker/compose.yaml exec mcp-switch \
 ```bash
 pnpm install
 cp .env.example .env          # MCP_PUBLIC_URL は空のまま → 匿名ローカル /mcp
-pnpm dev                      # ゲートウェイ :4200 + コンソール :5173
+pnpm dev                      # ゲートウェイ :4577 + コンソール :5173
 ```
 
 `MCP_PUBLIC_URL` 未設定だと匿名の `/mcp` が提供され、OAuth を組む前のお試しに便利です。

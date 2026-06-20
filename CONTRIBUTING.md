@@ -8,7 +8,7 @@ Contributions — bug reports, fixes, docs, translations — are welcome.
 ```bash
 pnpm install
 cp .env.example .env          # leave MCP_PUBLIC_URL empty for an anonymous local /mcp
-pnpm dev                      # gateway :4200 + console :5173
+pnpm dev                      # gateway :4577 + console :5173
 ```
 
 Monorepo layout: `apps/{mcp-gateway,console-web}`, `packages/{schemas,config}`.

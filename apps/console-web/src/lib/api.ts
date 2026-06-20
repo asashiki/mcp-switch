@@ -12,7 +12,7 @@ import { tStatic } from "@/i18n/locales";
 
 // ---- 配置 ------------------------------------------------------------------
 // 生产部署：把前端构建产物放在 mcp-gateway 同源下，BASE 留空走相对路径
-// 本地开发：默认走 vite proxy → /api/* → http://127.0.0.1:4200
+// 本地开发：默认走 vite proxy → /api/* → http://127.0.0.1:4577
 const BASE = import.meta.env.VITE_API_BASE ?? "";
 
 const TOKEN_KEY = "mcp-switch.console.token";

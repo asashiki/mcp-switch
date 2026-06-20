@@ -10,7 +10,7 @@ const directory = mkdtempSync(join(tmpdir(), "mcp-switch-smoke-"));
 const { server: mcpGateway } = await createMcpGatewayApp({
   env: {
     HOST: "127.0.0.1",
-    PORT: 4200,
+    PORT: 4577,
     NODE_ENV: "test",
     MCP_AUTH_DB_PATH: join(directory, "mcp-auth.sqlite"),
     MCP_OAUTH_SCOPE: "tools:read tools:write",

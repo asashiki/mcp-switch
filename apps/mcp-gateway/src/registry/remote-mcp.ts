@@ -30,7 +30,8 @@ const remoteMcpServerConfigSchema = z.object({
   name: z.string().trim().min(1),
   // http 服务器必填真实 URL；stdio 服务器没有 URL，存 `stdio://<command>` 占位。
   url: z.string().min(1),
-  description: z.string().trim().min(1),
+  // Optional: env-seeded servers often omit it. Falls back to `name` at parse time.
+  description: z.string().trim().min(1).optional(),
   // 传输方式：http=远程 URL 中转（默认）；stdio=本机拉起子进程托管。
   transport: z.enum(["http", "stdio"]).default("http"),
   command: z.string().trim().min(1).optional(),
@@ -274,7 +275,12 @@ export function parseRemoteMcpServerConfigs(source?: string) {
   }
 
   const parsed = JSON.parse(source) as unknown;
-  return z.array(remoteMcpServerConfigSchema).parse(parsed).filter((item) => item.enabled);
+  return z
+    .array(remoteMcpServerConfigSchema)
+    .parse(parsed)
+    .filter((item) => item.enabled)
+    // `description` is required downstream (storage schema); default it to the name.
+    .map((item) => ({ ...item, description: item.description ?? item.name }));
 }
 
 export function createRemoteMcpRegistry(options: {

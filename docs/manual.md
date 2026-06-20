@@ -63,17 +63,17 @@ docker compose -f infra/docker/compose.yaml --env-file .env up -d --build
 验证：
 
 ```bash
-curl http://127.0.0.1:4200/health
+curl http://127.0.0.1:4577/health
 ```
 
-> 反代后部署：`.env` 里设 `MCP_PUBLIC_URL=https://mcp.example.com` 和 `MCP_GATEWAY_BIND_HOST=0.0.0.0`，反代把 `/mcp`、`/console`、`/api/console/*`、OAuth 端点转发到容器 `:4200`。
+> 反代后部署：`.env` 里设 `MCP_PUBLIC_URL=https://mcp.example.com` 和 `MCP_GATEWAY_BIND_HOST=0.0.0.0`，反代把 `/mcp`、`/console`、`/api/console/*`、OAuth 端点转发到容器 `:4577`。
 
 ### 本地试玩（不用 OAuth）
 
 ```bash
 pnpm install
 cp .env.example .env      # MCP_PUBLIC_URL 留空
-pnpm dev                  # gateway :4200 + 控制台 :5173
+pnpm dev                  # gateway :4577 + 控制台 :5173
 ```
 
 ---
@@ -87,13 +87,13 @@ docker compose -f infra/docker/compose.yaml exec mcp-switch \
   node dist/cli/console-admin.js set admin "你的密码"
 ```
 
-打开 `http://127.0.0.1:4200/console`（或你的 `MCP_PUBLIC_URL/console`），用 `admin` + 刚设的密码登录。
+打开 `http://127.0.0.1:4577/console`（或你的 `MCP_PUBLIC_URL/console`），用 `admin` + 刚设的密码登录。
 
 ---
 
 ## 4. 概览页
 
-登录后默认进概览，一眼看清：本期调用量、P95 延迟、错误/拦截、活跃 agent，外加工具排行、agent 占比、最近异常、系统健康（`mcp-switch :4200` + 各上游连接器状态）。每 30 秒自动刷新。
+登录后默认进概览，一眼看清：本期调用量、P95 延迟、错误/拦截、活跃 agent，外加工具排行、agent 占比、最近异常、系统健康（`mcp-switch :4577` + 各上游连接器状态）。每 30 秒自动刷新。
 
 ---
 

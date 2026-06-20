@@ -3,10 +3,10 @@ import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 
 // 默认把 /api 转发到生产 gateway，本地调试无需配置 CORS。
-// 也可以用 VITE_API_BASE 直接指向 http://127.0.0.1:4200 然后跳过 proxy。
+// 也可以用 VITE_API_BASE 直接指向 http://127.0.0.1:4577 然后跳过 proxy。
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "VITE_");
-  const apiTarget = env.VITE_DEV_PROXY || "http://127.0.0.1:4200";
+  const apiTarget = env.VITE_DEV_PROXY || "http://127.0.0.1:4577";
   return {
     // 生产挂在 example.com/console/ 子路径下（gateway 静态服务）
     base: "/console/",

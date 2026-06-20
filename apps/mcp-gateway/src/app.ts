@@ -19,7 +19,7 @@ import { registerConsoleSpa } from "./console/spa.js";
 export const mcpGatewayEnvSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   HOST: z.string().min(1).default("127.0.0.1"),
-  PORT: z.coerce.number().int().positive().default(4200),
+  PORT: z.coerce.number().int().positive().default(4577),
   // Optional: pre-seed upstream MCP servers as a JSON array (otherwise add via console).
   REMOTE_MCP_SERVERS_JSON: z.string().optional(),
   // OAuth + console (optional — when MCP_PUBLIC_URL is unset, only an anonymous /mcp is served).
@@ -41,7 +41,7 @@ export function loadMcpGatewayEnv(source: NodeJS.ProcessEnv): McpGatewayEnv {
 
   return mcpGatewayEnvSchema.parse(
     parseServiceEnv("mcp-gateway", normalizedSource, {
-      PORT: z.coerce.number().int().positive().default(4200),
+      PORT: z.coerce.number().int().positive().default(4577),
       REMOTE_MCP_SERVERS_JSON: z.string().optional(),
       MCP_PUBLIC_URL: z.string().url().optional(),
       MCP_AUTH_DB_PATH: z.string().min(1).default("./data/mcp-auth.sqlite"),
