@@ -134,7 +134,7 @@ https://<你的 MCP_PUBLIC_URL>/mcp
 
 ## 文档
 
-- 📖 [使用手册（图文，含截图位）](docs/manual.md) —— 控制台逐步图解。
+- 📖 [使用手册](docs/manual.md) —— 控制台逐步图解。
 
 ## 开发
 
