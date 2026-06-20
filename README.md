@@ -14,6 +14,8 @@ single, OAuth-secured endpoint — then exposes them to any AI that speaks MCP
 
 **English** · [简体中文](README.zh-CN.md) · [日本語](README.ja.md)
 
+🔗 **[Live console demo](https://show.asashiki.com/console/)** · 📖 **[User manual](docs/manual.md)**
+
 </div>
 
 ---

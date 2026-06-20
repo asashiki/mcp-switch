@@ -13,6 +13,8 @@
 
 [English](README.md) · **简体中文** · [日本語](README.ja.md)
 
+🔗 **[在线控制台演示](https://show.asashiki.com/console/)** · 📖 **[使用手册](docs/manual.md)**
+
 </div>
 
 ---

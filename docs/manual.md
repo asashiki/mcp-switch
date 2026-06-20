@@ -4,9 +4,10 @@
 
 **一个 MCP 端点，聚合你所有本地 + 远程 MCP 服务器。**
 
-</div>
+🔗 **在线控制台演示 → [show.asashiki.com/console](https://show.asashiki.com/console/)**
+（真实前端 + 样例数据，无需后端 —— 想先看界面长什么样，直接点开即可）
 
-> 截图位用 `> 📸 …` 标出，对应 `docs/img/` 下的文件名，自己截图后放进去即可（占位图不存在时这一行不显示图，不影响阅读）。
+</div>
 
 ---
 
@@ -22,6 +23,8 @@
 8. [把 AI 接上来](#8-把-ai-接上来)
 9. [审计](#9-审计)
 10. [常见问题](#10-常见问题)
+
+> 各页面的实际样子，可对照 [在线控制台演示](https://show.asashiki.com/console/) 边看边读。
 
 ---
 
@@ -86,19 +89,11 @@ docker compose -f infra/docker/compose.yaml exec mcp-switch \
 
 打开 `http://127.0.0.1:4200/console`（或你的 `MCP_PUBLIC_URL/console`），用 `admin` + 刚设的密码登录。
 
-> 📸 登录页 —— `docs/img/01-login.png`
->
-> ![登录页](img/01-login.png)
-
 ---
 
 ## 4. 概览页
 
 登录后默认进概览，一眼看清：本期调用量、P95 延迟、错误/拦截、活跃 agent，外加工具排行、agent 占比、最近异常、系统健康（`mcp-switch :4200` + 各上游连接器状态）。每 30 秒自动刷新。
-
-> 📸 概览页 —— `docs/img/02-overview.png`
->
-> ![概览页](img/02-overview.png)
 
 ---
 
@@ -117,10 +112,6 @@ docker compose -f infra/docker/compose.yaml exec mcp-switch \
 }}}
 ```
 
-> 📸 添加远程服务器 —— `docs/img/03-add-remote.png`
->
-> ![添加远程服务器](img/03-add-remote.png)
-
 ### 方式 B：本地（stdio，本机接管）
 
 MCP Switch 会在你的服务器上拉起这个进程，再远程暴露它。
@@ -135,23 +126,11 @@ MCP Switch 会在你的服务器上拉起这个进程，再远程暴露它。
 
 > 镜像内置 Node/`npx`；要跑 `uvx`/Python 的 stdio 上游，需在 Dockerfile 里加对应运行时。
 
-> 📸 添加本地 stdio 服务器 —— `docs/img/04-add-stdio.png`
->
-> ![添加本地服务器](img/04-add-stdio.png)
-
 ### 方式 C：直接粘 JSON
 
 把上面任一段 JSON 粘进导入框，会自动识别 transport（remote/stdio）并填好表单。
 
-> 📸 JSON 导入框 —— `docs/img/05-json-import.png`
->
-> ![JSON 导入](img/05-json-import.png)
-
 添加后会**自动发现**上游的工具并 seed 进技能注册表（**默认全部禁用**，需要你在技能页开）。卡片上能看到 status / 工具数 / lastError，以及「查看 JSON 配置」回显（仅键名，密钥值不外泄）。
-
-> 📸 上游服务器卡片 —— `docs/img/06-server-card.png`
->
-> ![服务器卡片](img/06-server-card.png)
 
 ---
 
@@ -163,10 +142,6 @@ MCP Switch 会在你的服务器上拉起这个进程，再远程暴露它。
 - **允许写入**：远程**写工具**默认 OFF，需要额外打开这个开关才会暴露（`allowWrite` 会透传给上游）。只读工具没有这个开关。
 - 改完开关后，**已连接的 AI 客户端需重连**才会刷新工具列表（协议限制推不了变更，控制台会提示）。
 
-> 📸 技能页（分组 + 开关）—— `docs/img/07-skills.png`
->
-> ![技能页](img/07-skills.png)
-
 ---
 
 ## 7. Agents：身份与分权
@@ -176,14 +151,6 @@ MCP Switch 会在你的服务器上拉起这个进程，再远程暴露它。
 - **新建**：弹出一次性密钥，记得复制保存（只显示这一次）。
 - **启停 / 轮换密钥**：禁用会吊销该 agent 的所有 token。
 - **工具可见性**（白名单）：给某个 agent 只露指定的几个工具——空 = 继承全部启用的工具；非空 = 只给白名单里的。不用为此拆出多个 URL。
-
-> 📸 Agents 页 —— `docs/img/08-agents.png`
->
-> ![Agents 页](img/08-agents.png)
->
-> 📸 新建 agent 的一次性密钥 —— `docs/img/09-agent-secret.png`
->
-> ![一次性密钥](img/09-agent-secret.png)
 
 ---
 
@@ -197,23 +164,11 @@ https://<你的 MCP_PUBLIC_URL>/mcp
 
 走 OAuth 登录，在同意页选一个 agent 身份。完成后，这个 AI 就看到**一个**连接器，背后是你聚合并启用的所有工具。ChatGPT 等其他客户端同理，都只需这一个远程 URL。
 
-> 📸 在 claude.ai 添加自定义连接器 —— `docs/img/10-connect-claude.png`
->
-> ![添加连接器](img/10-connect-claude.png)
->
-> 📸 OAuth 同意页（选 agent 身份）—— `docs/img/11-oauth-consent.png`
->
-> ![OAuth 同意](img/11-oauth-consent.png)
-
 ---
 
 ## 9. 审计
 
 进 **审计** 页，按时间倒序看每一次请求：时间 / 动作 / agent / 成功与否 / 详情。排查「某个工具调用为什么失败」「谁在用」时看这里。
-
-> 📸 审计页 —— `docs/img/12-audit.png`
->
-> ![审计页](img/12-audit.png)
 
 ---
 
