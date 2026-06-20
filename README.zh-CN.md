@@ -26,9 +26,8 @@ MCP Switch 夹在中间：
 
 ```
    本地 stdio MCP   ─┐
-   另一个 stdio MCP ─┤
-   远程 HTTP MCP    ─┼──►  MCP Switch  ──►  一个 OAuth URL  ──►  claude.ai / ChatGPT / …
-   再一个 MCP       ─┘     (你的 VPS)
+                    ─┼──►  MCP Switch  ──►  一个 OAuth URL  ──►  claude.ai / ChatGPT / …
+   远程 HTTP MCP    ─┘     (你的 VPS)
 ```
 
 - **聚合**任意多个 MCP——远程（URL）或本地（stdio，在你机器上托管）——到一个端点。
