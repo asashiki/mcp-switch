@@ -30,9 +30,8 @@ MCP Switch sits in the middle:
 
 ```
    local stdio MCP  ─┐
-   another stdio MCP ─┤
-   remote HTTP MCP   ─┼──►  MCP Switch  ──►  one OAuth URL  ──►  claude.ai / ChatGPT / …
-   yet another MCP   ─┘     (your VPS)
+                     ┼──►  MCP Switch  ──►  one OAuth URL  ──►  claude.ai / ChatGPT / …
+   yet another MCP  ─┘     (your VPS)
 ```
 
 - **Aggregate** any number of MCP servers — remote (URL) or local (stdio, hosted on
@@ -146,7 +145,7 @@ All via `.env` (see [`.env.example`](.env.example)):
 
 ## Docs
 
-- 📖 [使用手册（图文，含截图位）](docs/manual.md) — step-by-step walkthrough of the console.
+- 📖 [使用手册](docs/manual.md) — step-by-step walkthrough of the console.
 
 ## Development
 
