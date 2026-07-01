@@ -44,7 +44,7 @@ MCP Switch sits in the middle:
 
 ## Architecture
 
-A **single service** (`:4200`) + a console SPA it serves:
+A **single service** (`:4577`) + a console SPA it serves:
 
 | Part | Role |
 |---|---|
@@ -68,8 +68,8 @@ docker compose -f infra/docker/compose.yaml --env-file .env up -d --build
 
 Then:
 
-- Health: `curl http://127.0.0.1:4200/health`
-- Console: open `http://127.0.0.1:4200/console` (set a password first — see below)
+- Health: `curl http://127.0.0.1:4577/health`
+- Console: open `http://127.0.0.1:4577/console` (set a password first — see below)
 
 > Behind a reverse proxy? Set `MCP_PUBLIC_URL` and `MCP_GATEWAY_BIND_HOST=0.0.0.0` in `.env`.
 
@@ -85,7 +85,7 @@ docker compose -f infra/docker/compose.yaml exec mcp-switch \
 ```bash
 pnpm install
 cp .env.example .env          # leave MCP_PUBLIC_URL empty for an anonymous local /mcp
-pnpm dev                      # gateway :4200 + console :5173
+pnpm dev                      # gateway :4577 + console :5173
 ```
 
 Without `MCP_PUBLIC_URL`, the gateway serves an anonymous `/mcp` — handy for trying

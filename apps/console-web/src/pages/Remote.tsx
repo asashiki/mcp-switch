@@ -177,6 +177,27 @@ export default function RemotePage() {
         </>}
       />
 
+      {(() => {
+        const clientUrl = `${window.location.origin}/mcp`;
+        return (
+          <div className="hint-box" style={{ marginBottom: 14 }}>
+            <div style={{ fontWeight: 600, marginBottom: 4 }}>{t("remote.clientConnectTitle")}</div>
+            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 6 }}>
+              <code style={{ fontSize: 14 }}>{clientUrl}</code>
+              <button
+                className="btn ghost sm"
+                onClick={e => {
+                  navigator.clipboard?.writeText(clientUrl);
+                  const b = e.currentTarget; const o = b.textContent;
+                  b.textContent = t("remote.copied"); setTimeout(() => { b.textContent = o; }, 1200);
+                }}
+              >{t("remote.copy")}</button>
+            </div>
+            <div style={{ fontSize: 12, color: "var(--text-3)" }}>{t("remote.clientConnectHint")}</div>
+          </div>
+        );
+      })()}
+
       {msg && <div className="hint-box" style={{ marginBottom: 14 }}>{msg}</div>}
 
       {q.loading && <div className="card"><div className="card-body" style={{ color: "var(--text-3)" }}>{t("common.loading")}</div></div>}
@@ -206,7 +227,10 @@ export default function RemotePage() {
               <div className="err"><strong>{t("remote.errorPrefix")}</strong>{s.lastError}</div>
             )}
             {showCfg === s.id && (
-              <pre className="cfg-json">{serverConfigJson(s)}</pre>
+              <>
+                <div className="meta" style={{ color: "var(--text-3)", margin: "4px 0" }}>{t("remote.upstreamCfgCaption")}</div>
+                <pre className="cfg-json">{serverConfigJson(s)}</pre>
+              </>
             )}
           </div>
           <div className="ops">

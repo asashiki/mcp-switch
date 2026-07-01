@@ -39,7 +39,7 @@ MCP Switch 夹在中间：
 
 ## 架构
 
-**单服务**（`:4200`）+ 它自带托管的控制台 SPA：
+**单服务**（`:4577`）+ 它自带托管的控制台 SPA：
 
 | 部件 | 职责 |
 |---|---|
@@ -62,8 +62,8 @@ docker compose -f infra/docker/compose.yaml --env-file .env up -d --build
 
 然后：
 
-- 健康检查：`curl http://127.0.0.1:4200/health`
-- 控制台：打开 `http://127.0.0.1:4200/console`（先设密码，见下）
+- 健康检查：`curl http://127.0.0.1:4577/health`
+- 控制台：打开 `http://127.0.0.1:4577/console`（先设密码，见下）
 
 > 反代后部署？在 `.env` 里设 `MCP_PUBLIC_URL` 和 `MCP_GATEWAY_BIND_HOST=0.0.0.0`。
 
@@ -79,7 +79,7 @@ docker compose -f infra/docker/compose.yaml exec mcp-switch \
 ```bash
 pnpm install
 cp .env.example .env          # MCP_PUBLIC_URL 留空 → 匿名本地 /mcp
-pnpm dev                      # 网关 :4200 + 控制台 :5173
+pnpm dev                      # 网关 :4577 + 控制台 :5173
 ```
 
 没设 `MCP_PUBLIC_URL` 时，网关提供匿名 `/mcp`——方便在接 OAuth 前先本地试玩。

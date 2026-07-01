@@ -3,7 +3,7 @@ import { AuthStore } from "./store.js";
 import { verifyPkceS256 } from "./tokens.js";
 
 export interface OAuthConfig {
-  /** Public origin, e.g. http://127.0.0.1:4200 (no trailing slash). */
+  /** Public origin, e.g. http://127.0.0.1:4577 (no trailing slash). */
   issuer: string;
   /** Default scope granted at authorization time. */
   defaultScope: string;
