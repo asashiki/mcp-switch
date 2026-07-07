@@ -4,9 +4,7 @@
 
 **One MCP endpoint to rule them all.**
 
-A self-hosted gateway that aggregates your local **and** remote MCP servers behind a
-single, OAuth-secured endpoint — then exposes them to any AI that speaks MCP
-(claude.ai, ChatGPT, etc.).
+Web- or app-based AIs are limited to remote MCP servers and typically offer only a single custom connector slot. In contrast, half of the most useful MCP servers run locally via standard I/O (like npx or uvx), making them accessible only to Claude Desktop or CLI tools.
 
 ![license](https://img.shields.io/badge/license-MIT-e96ba8)
 ![node](https://img.shields.io/badge/node-%E2%89%A524-3c873a)
