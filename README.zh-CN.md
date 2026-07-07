@@ -4,7 +4,7 @@
 
 **一个 MCP 端点，聚合你所有的本地和远程 MCP。**
 
-一个自托管网关：把你的本地**和**远程 MCP 服务器聚合到一个 OAuth 保护的端点之后，
+一个自托管网关：把你的本地和远程 MCP 服务器聚合到一个 OAuth 保护的端点之后，
 再统一暴露给任意有 MCP 功能的 AI（claude.ai、ChatGPT 等）。
 
 ![license](https://img.shields.io/badge/license-MIT-e96ba8)
