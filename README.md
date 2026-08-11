@@ -1,3 +1,5 @@
+
+
 <div align="center">
 
 # MCP Switch
@@ -138,6 +140,7 @@ All via `.env` (see [`.env.example`](.env.example)):
 | `MCP_PUBLIC_URL` | Public origin; **set it to enable OAuth + console**, unset = anonymous local `/mcp` |
 | `MCP_AUTH_DB_PATH` | SQLite file (agents, OAuth, audit, skills, server registry) |
 | `MCP_OAUTH_SCOPE` | OAuth scopes advertised to clients |
+| `MCP_CONSOLE_CORS_ORIGINS` | Comma-separated list of allowed console SPA origins (default: `http://localhost:5173,http://localhost:3000`) |
 | `REMOTE_MCP_SERVERS_JSON` | Optional: pre-seed upstream servers instead of using the console |
 | `MCP_GATEWAY_BIND_HOST` | Bind `0.0.0.0` when running behind a reverse proxy |
 
