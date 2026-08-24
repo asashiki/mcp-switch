@@ -1,4 +1,4 @@
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { McpServer } from "@modelcontextprotocol/server";
 import { registerTools, type RemoteToolDescriptor, type RemoteResourceDescriptor } from "./tools.js";
 import { mcpToolCatalogSchema } from "@mcp-switch/schemas";
 import type { RegistryClient } from "./registry/client.js";

@@ -1,4 +1,4 @@
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod";
 import type { RegistryClient } from "./registry/client.js";
 
@@ -9,6 +9,8 @@ export interface RemoteToolDescriptor {
   serverId: string;
   toolName: string;
   inputSchema: Record<string, unknown>;
+  /** Whether invoking the upstream tool is expected to be side-effect free. */
+  readOnly: boolean;
   allowWrite: boolean;
   /** Tool-definition _meta (MCP Apps ui.resourceUri / openai outputTemplate). */
   meta?: Record<string, unknown> | null;

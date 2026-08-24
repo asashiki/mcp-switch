@@ -5,11 +5,9 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import Fastify from "fastify";
 import { z } from "zod";
-import { Client } from "@modelcontextprotocol/sdk/client";
-import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
+import { InMemoryTransport, McpServer, createMcpHandler } from "@modelcontextprotocol/server";
+import { toNodeHandler } from "@modelcontextprotocol/node";
 import { createMcpGatewayServer } from "./mcp.js";
 import { createMcpGatewayApp } from "./app.js";
 import type { RegistryClient } from "./registry/client.js";
@@ -34,6 +32,7 @@ test("gateway aggregates an upstream tool and coerces argument types", async () 
         description: "demo",
         serverId: "demo",
         toolName: "get_app",
+        readOnly: true,
         allowWrite: true,
         inputSchema: {
           type: "object",
@@ -89,11 +88,9 @@ test("gateway connects to an upstream MCP and re-exposes its tools (single servi
       structuredContent: { count: input.count ?? 0 }
     })
   );
-  upstreamApp.post("/mcp", async (request, reply) => {
-    const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
-    reply.raw.on("close", () => transport.close());
-    await upstream.connect(transport);
-    await transport.handleRequest(request.raw, reply.raw, request.body);
+  const upstreamHandler = toNodeHandler(createMcpHandler(() => upstream));
+  upstreamApp.all("/mcp", async (request, reply) => {
+    await upstreamHandler(request.raw, reply.raw, request.body);
     return reply;
   });
   const upstreamAddress = await upstreamApp.listen({ host: "127.0.0.1", port: 0 });
@@ -114,15 +111,30 @@ test("gateway connects to an upstream MCP and re-exposes its tools (single servi
   });
   const gatewayAddress = await gateway.listen({ host: "127.0.0.1", port: 0 });
 
-  const client = new Client({ name: "e2e-client", version: "0.0.0" });
+  const client = new Client(
+    { name: "e2e-client", version: "0.0.0" },
+    { versionNegotiation: { mode: "auto" } }
+  );
   try {
     await client.connect(new StreamableHTTPClientTransport(new URL(`${gatewayAddress}/mcp`)));
+    assert.equal(client.getNegotiatedProtocolVersion(), "2026-07-28");
     const listed = await client.listTools();
     assert.ok(listed.tools.find((t) => t.name === "rmcp__up__echo"), "upstream tool re-exposed");
 
     const res = await client.callTool({ name: "rmcp__up__echo", arguments: { count: 3 } });
     assert.ok(!res.isError);
     assert.equal((res.structuredContent as { count?: number })?.count, 3);
+
+    // The same endpoint keeps serving pre-2026 clients through the stateless
+    // compatibility path; deployments do not need a flag day migration.
+    const legacyClient = new Client({ name: "legacy-e2e-client", version: "0.0.0" });
+    try {
+      await legacyClient.connect(new StreamableHTTPClientTransport(new URL(`${gatewayAddress}/mcp`)));
+      assert.notEqual(legacyClient.getNegotiatedProtocolVersion(), "2026-07-28");
+      assert.ok((await legacyClient.listTools()).tools.some((tool) => tool.name === "rmcp__up__echo"));
+    } finally {
+      await legacyClient.close();
+    }
   } finally {
     await client.close();
     await gateway.close();

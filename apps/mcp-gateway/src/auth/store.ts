@@ -38,6 +38,7 @@ export interface AccessTokenContext {
   clientId: string;
   agentId: string;
   scope: string;
+  expiresAt: number;
 }
 
 function nowIso(): string {
@@ -494,7 +495,13 @@ export class AuthStore {
     if (!agent || !agent.enabled) return null;
     this.db.prepare(`UPDATE oauth_access_tokens SET last_used_at = ? WHERE token_hash = ?`).run(nowIso(), hash);
     this.db.prepare(`UPDATE agents SET last_used_at = ? WHERE agent_id = ?`).run(nowIso(), agentId);
-    return { tokenHash: hash, clientId: String(row.client_id), agentId, scope: String(row.scope) };
+    return {
+      tokenHash: hash,
+      clientId: String(row.client_id),
+      agentId,
+      scope: String(row.scope),
+      expiresAt: Math.floor(new Date(String(row.expires_at)).getTime() / 1000)
+    };
   }
 
   /**
@@ -802,7 +809,7 @@ export class AuthStore {
   }
 
   /** Remote-tool descriptors for the given enabled+visible skill ids. */
-  getRemoteDescriptors(ids: Set<string>): Array<{ skillId: string; title: string; description: string | null; serverId: string; toolName: string; inputSchema: Record<string, unknown>; allowWrite: boolean; meta: Record<string, unknown> | null }> {
+  getRemoteDescriptors(ids: Set<string>): Array<{ skillId: string; title: string; description: string | null; serverId: string; toolName: string; inputSchema: Record<string, unknown>; readOnly: boolean; allowWrite: boolean; meta: Record<string, unknown> | null }> {
     if (ids.size === 0) return [];
     const rows = this.db.prepare(`SELECT skill_id, title, description, remote_meta, allow_write FROM skill_registry WHERE source = 'remote-mcp' AND remote_meta IS NOT NULL`).all() as Record<string, unknown>[];
     const out = [];
@@ -810,12 +817,12 @@ export class AuthStore {
       const id = String(r.skill_id);
       if (!ids.has(id)) continue;
       try {
-        const m = JSON.parse(String(r.remote_meta)) as { serverId: string; toolName: string; inputSchema: Record<string, unknown>; toolMeta?: Record<string, unknown> | null };
+        const m = JSON.parse(String(r.remote_meta)) as { serverId: string; toolName: string; inputSchema: Record<string, unknown>; readOnly?: boolean; toolMeta?: Record<string, unknown> | null };
         // Enabling a remote skill IS the write opt-in now (the per-tool
         // allow_write sub-toggle was removed): any enabled tool is allowed to
         // run, write or not. getRemoteDescriptors is only ever called with the
         // enabled+visible id set, so allowWrite is unconditionally true here.
-        out.push({ skillId: id, title: String(r.title), description: r.description ? String(r.description) : null, serverId: m.serverId, toolName: m.toolName, inputSchema: m.inputSchema ?? {}, allowWrite: true, meta: m.toolMeta ?? null });
+        out.push({ skillId: id, title: String(r.title), description: r.description ? String(r.description) : null, serverId: m.serverId, toolName: m.toolName, inputSchema: m.inputSchema ?? {}, readOnly: m.readOnly === true, allowWrite: true, meta: m.toolMeta ?? null });
       } catch { /* skip malformed */ }
     }
     return out;

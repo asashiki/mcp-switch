@@ -154,6 +154,8 @@ test("remote: seed with meta, descriptors (enable = write opt-in), prune by serv
   // write opt-in, so every enabled descriptor forwards allowWrite=true.
   const writeDesc = descs.find((d) => d.toolName === "write")!;
   assert.equal(writeDesc.allowWrite, true, "enabled write tool forwards allowWrite");
+  assert.equal(descs.find((d) => d.toolName === "echo")!.readOnly, true);
+  assert.equal(writeDesc.readOnly, false);
   // readOnly surfaced in listSkills (from the dedicated column)
   const listed = s.listSkills().find((x) => x.skillId === "rmcp__srv__echo")!;
   assert.equal(listed.readOnly, true);

@@ -1,8 +1,7 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { Client } from "@modelcontextprotocol/sdk/client";
-import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
 import { createMcpGatewayApp } from "../app.js";
 
 const directory = mkdtempSync(join(tmpdir(), "mcp-switch-smoke-"));
@@ -20,7 +19,10 @@ const { server: mcpGateway } = await createMcpGatewayApp({
 });
 const mcpAddress = await mcpGateway.listen({ host: "127.0.0.1", port: 0 });
 
-const client = new Client({ name: "mcp-switch-smoke-client", version: "0.1.0" });
+const client = new Client(
+  { name: "mcp-switch-smoke-client", version: "0.1.0" },
+  { versionNegotiation: { mode: "auto" } }
+);
 
 try {
   await client.connect(new StreamableHTTPClientTransport(new URL(`${mcpAddress}/mcp`)));
