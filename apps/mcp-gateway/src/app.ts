@@ -1,8 +1,9 @@
 import Fastify, { type FastifyReply, type FastifyRequest } from "fastify";
-import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import { createMcpHandler, type AuthInfo } from "@modelcontextprotocol/server";
+import { toNodeHandler } from "@modelcontextprotocol/node";
 import { createServiceHealth, serviceManifestSchema } from "@mcp-switch/schemas";
 import { parseServiceEnv } from "@mcp-switch/config";
-import { z } from "zod";
+import { z } from "zod/v3";
 import {
   createMcpGatewayServer,
   mcpToolCatalog,
@@ -32,6 +33,15 @@ export const mcpGatewayEnvSchema = z.object({
 
 export type McpGatewayEnv = z.infer<typeof mcpGatewayEnvSchema>;
 
+// @mcp-switch/config still uses Zod 3 while the MCP SDK v2 requires Zod 4.
+// Keep that package boundary structural so TypeScript does not try to compare
+// both Zod type graphs (which is both invalid and extremely expensive).
+const parseGatewayServiceEnv = parseServiceEnv as unknown as (
+  app: "mcp-gateway",
+  source: NodeJS.ProcessEnv,
+  shape: Record<string, unknown>
+) => unknown;
+
 export function loadMcpGatewayEnv(source: NodeJS.ProcessEnv): McpGatewayEnv {
   const normalizedSource: NodeJS.ProcessEnv = {
     ...source,
@@ -40,7 +50,7 @@ export function loadMcpGatewayEnv(source: NodeJS.ProcessEnv): McpGatewayEnv {
   };
 
   return mcpGatewayEnvSchema.parse(
-    parseServiceEnv("mcp-gateway", normalizedSource, {
+    parseGatewayServiceEnv("mcp-gateway", normalizedSource, {
       PORT: z.coerce.number().int().positive().default(4577),
       REMOTE_MCP_SERVERS_JSON: z.string().optional(),
       MCP_PUBLIC_URL: z.string().url().optional(),
@@ -110,20 +120,21 @@ export async function createMcpGatewayApp(options?: {
   server.get("/tools", async () => ({ tools: mcpToolCatalog.map((tool) => tool.id) }));
   server.get("/tools/catalog", async () => ({ tools: mcpToolCatalog }));
 
-  async function handleMcp(request: FastifyRequest, reply: FastifyReply, agentId?: string) {
-    const transport = new StreamableHTTPServerTransport({
-      sessionIdGenerator: undefined
-    });
+  const mcpHandler = createMcpHandler((requestContext) => {
+    const agentId = typeof requestContext.authInfo?.extra?.agentId === "string"
+      ? requestContext.authInfo.extra.agentId
+      : undefined;
+    const canWrite = !requestContext.authInfo || requestContext.authInfo.scopes.includes("tools:write");
     // Filter tools/list: globally-enabled skills, narrowed to the agent's
     // allowlist when it has one.
     const enabledSkills = agentId ? store.getVisibleSkillIdsForAgent(agentId) : store.getEnabledSkillIds();
     // Upstream tools that are enabled + visible for this agent.
-    const remoteTools = store.getRemoteDescriptors(enabledSkills);
+    const remoteTools = store.getRemoteDescriptors(enabledSkills).filter((tool) => canWrite || tool.readOnly);
     // UI resources (MCP Apps widgets) for the servers whose tools are exposed,
     // so upstream tool UIs render through the gateway.
     const remoteServerIds = new Set(remoteTools.map((t) => t.serverId));
     const remoteResources = store.getRemoteResourcesForServers(remoteServerIds);
-    const mcpServer = createMcpGatewayServer(client, {
+    return createMcpGatewayServer(client, {
       remoteTools,
       remoteResources,
       readRemoteResource: (serverId, uri) => client.readRemoteResource(serverId, uri),
@@ -134,12 +145,16 @@ export async function createMcpGatewayApp(options?: {
         store.audit({ agentId: agentId ?? null, toolName, action: "tool_call", success, latencyMs })
     });
 
-    reply.raw.on("close", () => {
-      transport.close();
-    });
+  }, {
+    legacy: "stateless",
+    responseMode: "auto",
+    onerror: (error) => server.log.error(error, "MCP request failed")
+  });
+  const nodeMcpHandler = toNodeHandler(mcpHandler);
 
-    await mcpServer.connect(transport);
-    await transport.handleRequest(request.raw, reply.raw, request.body);
+  async function handleMcp(request: FastifyRequest, reply: FastifyReply, authInfo?: AuthInfo) {
+    (request.raw as typeof request.raw & { auth?: AuthInfo }).auth = authInfo;
+    await nodeMcpHandler(request.raw, reply.raw, request.body);
     return reply;
   }
 
@@ -212,10 +227,16 @@ export async function createMcpGatewayApp(options?: {
         return { error: "unauthorized" };
       }
       store.audit({ agentId: ctx.agentId, clientId: ctx.clientId, action: "mcp_request", success: true });
-      return handleMcp(request, reply, ctx.agentId);
+      return handleMcp(request, reply, {
+        token: token!,
+        clientId: ctx.clientId,
+        scopes: ctx.scope.split(/\s+/).filter(Boolean),
+        expiresAt: ctx.expiresAt,
+        extra: { agentId: ctx.agentId }
+      });
     };
-    server.post("/mcp", protectedMcp);
-    server.post("/mcp-oauth", protectedMcp);
+    server.all("/mcp", protectedMcp);
+    server.all("/mcp-oauth", protectedMcp);
 
     // JSON API for the console SPA.
     registerConsoleApi(server, store, client, {
@@ -234,10 +255,11 @@ export async function createMcpGatewayApp(options?: {
     }
   } else {
     // OAuth disabled (dev / local) — anonymous /mcp exposes the enabled tools.
-    server.post("/mcp", async (request, reply) => handleMcp(request, reply));
+    server.all("/mcp", async (request, reply) => handleMcp(request, reply));
   }
 
   server.addHook("onClose", async () => {
+    await mcpHandler.close();
     store.close();
   });
 

@@ -1,13 +1,15 @@
 import { randomUUID } from "node:crypto";
-import { Client } from "@modelcontextprotocol/sdk/client";
-import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
-import { StdioClientTransport, getDefaultEnvironment } from "@modelcontextprotocol/sdk/client/stdio.js";
-import { auth, UnauthorizedError, type OAuthClientProvider } from "@modelcontextprotocol/sdk/client/auth.js";
-import type {
-  OAuthClientInformationMixed,
-  OAuthClientMetadata,
-  OAuthTokens
-} from "@modelcontextprotocol/sdk/shared/auth.js";
+import {
+  Client,
+  StreamableHTTPClientTransport,
+  auth,
+  UnauthorizedError,
+  type OAuthClientProvider,
+  type OAuthClientInformationMixed,
+  type OAuthClientMetadata,
+  type OAuthTokens
+} from "@modelcontextprotocol/client";
+import { StdioClientTransport, getDefaultEnvironment } from "@modelcontextprotocol/client/stdio";
 import {
   connectorSchema,
   remoteMcpServerSchema,
@@ -236,10 +238,10 @@ async function withRemoteClient<T>(
   callback: (client: Client) => Promise<T>,
   authProvider?: OAuthClientProvider
 ) {
-  const client = new Client({
-    name: "mcp-switch-core-remote-mcp",
-    version: "0.1.0"
-  });
+  const client = new Client(
+    { name: "mcp-switch-core-remote-mcp", version: "0.1.0" },
+    { versionNegotiation: { mode: "auto" } }
+  );
 
   // stdio（本机托管）：拉起子进程，经 stdin/stdout 通信。每次调用 connect-per-call
   // 与 http 路径一致——子进程随 client.close() 退出，无需常驻守护。
