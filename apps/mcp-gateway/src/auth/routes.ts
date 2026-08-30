@@ -11,6 +11,31 @@ export interface OAuthConfig {
   refreshTtlSeconds: number;  // e.g. 30d
   codeTtlSeconds: number;     // e.g. 300
   pendingTtlSeconds: number;  // e.g. 600
+  /** Temporary compatibility for pre-RFC-8707 MCP clients. */
+  allowLegacyResourceOmission?: boolean;
+}
+
+function validRedirectUri(value: string): boolean {
+  if (value.length > 2048) return false;
+  try {
+    const url = new URL(value);
+    if (url.hash || url.username || url.password) return false;
+    if (url.protocol === "https:") return true;
+    return url.protocol === "http:" && ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
+  } catch {
+    return false;
+  }
+}
+
+function normalizedResource(value: string): string | null {
+  try {
+    const url = new URL(value);
+    if (!(["http:", "https:"] as string[]).includes(url.protocol)) return null;
+    if (url.hash || url.search || url.username || url.password) return null;
+    return `${url.protocol.toLowerCase()}//${url.host.toLowerCase()}${url.pathname}`;
+  } catch {
+    return null;
+  }
 }
 
 function htmlEscape(s: string): string {
@@ -24,6 +49,7 @@ function consentPage(opts: {
   clientName: string;
   redirectHost: string;
   scope: string;
+  resource: string;
   agents: { agentId: string; displayName: string }[];
   error?: string;
 }): string {
@@ -113,6 +139,8 @@ function consentPage(opts: {
     <div class="panel">
       <div class="row"><span class="k">Client</span><span class="v">${htmlEscape(opts.clientName)}</span></div>
       <div class="row"><span class="k">Redirect</span><span class="v">${htmlEscape(opts.redirectHost)}</span></div>
+      <div class="row"><span class="k">Resource</span><span class="v">${htmlEscape(opts.resource)}</span></div>
+      <div class="row"><span class="k">Scopes</span><span class="v">${htmlEscape(opts.scope)}</span></div>
     </div>
     <form method="POST" action="/oauth/approve">
       <input type="hidden" name="pending" value="${htmlEscape(opts.pendingId)}">
@@ -153,18 +181,37 @@ export function registerOAuthRoutes(server: FastifyInstance, store: AuthStore, c
   }
 
   const issuer = config.issuer.replace(/\/$/, "");
+  const canonicalResource = `${issuer}/mcp`;
+  const normalizedCanonicalResource = normalizedResource(canonicalResource);
+  if (!normalizedCanonicalResource) throw new Error(`Invalid canonical MCP resource: ${canonicalResource}`);
+  const supportedScopes = [...new Set(config.defaultScope.split(/\s+/).filter(Boolean))];
+  const allowLegacyResourceOmission = config.allowLegacyResourceOmission ?? true;
+  const resolveResource = (raw: string | undefined): string | null => {
+    if (!raw) return allowLegacyResourceOmission ? canonicalResource : null;
+    return normalizedResource(raw) === normalizedCanonicalResource ? canonicalResource : null;
+  };
+  const resolveScope = (raw: string | undefined): string | null => {
+    const requested = [...new Set((raw?.trim() || config.defaultScope).split(/\s+/).filter(Boolean))];
+    return requested.length > 0 && requested.every((scope) => supportedScopes.includes(scope))
+      ? requested.join(" ")
+      : null;
+  };
 
   // ── Discovery metadata ────────────────────────────────────────────────────
 
   server.get("/.well-known/oauth-protected-resource", async () => ({
-    resource: `${issuer}/mcp`,
-    authorization_servers: [issuer]
+    resource: canonicalResource,
+    authorization_servers: [issuer],
+    scopes_supported: supportedScopes,
+    bearer_methods_supported: ["header"]
   }));
 
   // Some clients append the resource path to the well-known prefix.
   server.get("/.well-known/oauth-protected-resource/mcp", async () => ({
-    resource: `${issuer}/mcp`,
-    authorization_servers: [issuer]
+    resource: canonicalResource,
+    authorization_servers: [issuer],
+    scopes_supported: supportedScopes,
+    bearer_methods_supported: ["header"]
   }));
 
   const authServerMeta = {
@@ -176,7 +223,11 @@ export function registerOAuthRoutes(server: FastifyInstance, store: AuthStore, c
     response_types_supported: ["code"],
     grant_types_supported: ["authorization_code", "refresh_token"],
     code_challenge_methods_supported: ["S256"],
-    token_endpoint_auth_methods_supported: ["none"]
+    token_endpoint_auth_methods_supported: ["none"],
+    scopes_supported: supportedScopes,
+    authorization_response_iss_parameter_supported: true,
+    resource_indicators_supported: true,
+    client_id_metadata_document_supported: false
   };
   server.get("/.well-known/oauth-authorization-server", async () => authServerMeta);
   server.get("/.well-known/oauth-authorization-server/mcp", async () => authServerMeta);
@@ -192,9 +243,12 @@ export function registerOAuthRoutes(server: FastifyInstance, store: AuthStore, c
     const redirectUris = Array.isArray(body.redirect_uris)
       ? (body.redirect_uris as unknown[]).filter((u): u is string => typeof u === "string")
       : [];
-    if (redirectUris.length === 0) {
+    if (redirectUris.length === 0 || redirectUris.length > 16 || !redirectUris.every(validRedirectUri)) {
       reply.code(400);
-      return { error: "invalid_redirect_uri", error_description: "redirect_uris is required." };
+      return {
+        error: "invalid_redirect_uri",
+        error_description: "Use exact HTTPS redirect URIs, or HTTP only for localhost/loopback."
+      };
     }
     const client = store.registerClient(clientName, redirectUris);
     store.audit({ clientId: client.clientId, action: "register", success: true, detail: clientName });
@@ -218,7 +272,7 @@ export function registerOAuthRoutes(server: FastifyInstance, store: AuthStore, c
     const redirectUri = q.redirect_uri;
     const codeChallenge = q.code_challenge;
     const codeChallengeMethod = q.code_challenge_method ?? "S256";
-    const scope = q.scope?.trim() || config.defaultScope;
+    const scope = resolveScope(q.scope);
     const state = q.state ?? null;
 
     if (responseType !== "code") {
@@ -235,10 +289,22 @@ export function registerOAuthRoutes(server: FastifyInstance, store: AuthStore, c
     if (!client.redirectUris.includes(redirectUri)) {
       reply.code(400); return { error: "invalid_request", error_description: "redirect_uri not registered for this client" };
     }
+    if (!scope) {
+      reply.code(400); return { error: "invalid_scope", error_description: "one or more requested scopes are unsupported" };
+    }
+    const resource = resolveResource(q.resource);
+    if (!resource) {
+      reply.code(400); return {
+        error: q.resource ? "invalid_target" : "invalid_request",
+        error_description: q.resource
+          ? "resource must identify this MCP server"
+          : "resource is required"
+      };
+    }
 
     const pending = store.createPending({
       clientId, clientName: client.clientName, redirectUri,
-      codeChallenge, codeChallengeMethod, scope, state,
+      codeChallenge, codeChallengeMethod, scope, resource, state,
       ttlSeconds: config.pendingTtlSeconds
     });
 
@@ -263,6 +329,7 @@ export function registerOAuthRoutes(server: FastifyInstance, store: AuthStore, c
       clientName: pending.clientName,
       redirectHost,
       scope: pending.scope,
+      resource: pending.resource ?? canonicalResource,
       agents
     });
   });
@@ -281,6 +348,7 @@ export function registerOAuthRoutes(server: FastifyInstance, store: AuthStore, c
       const url = new URL(pending.redirectUri);
       for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
       if (pending.state) url.searchParams.set("state", pending.state);
+      url.searchParams.set("iss", issuer);
       return url.toString();
     };
 
@@ -301,6 +369,7 @@ export function registerOAuthRoutes(server: FastifyInstance, store: AuthStore, c
         clientName: pending.clientName,
         redirectHost: (() => { try { return new URL(pending.redirectUri).host; } catch { return pending.redirectUri; } })(),
         scope: pending.scope,
+        resource: pending.resource ?? canonicalResource,
         agents,
         error: "That agent doesn't exist, is disabled, or the secret is incorrect."
       });
@@ -313,6 +382,7 @@ export function registerOAuthRoutes(server: FastifyInstance, store: AuthStore, c
       codeChallenge: pending.codeChallenge,
       codeChallengeMethod: pending.codeChallengeMethod,
       scope: pending.scope,
+      resource: pending.resource ?? canonicalResource,
       ttlSeconds: config.codeTtlSeconds
     });
     store.deletePending(pending.pendingId);
@@ -330,13 +400,24 @@ export function registerOAuthRoutes(server: FastifyInstance, store: AuthStore, c
       const code = body.code;
       const redirectUri = body.redirect_uri;
       const codeVerifier = body.code_verifier;
-      if (!code || !redirectUri || !codeVerifier) {
-        reply.code(400); return { error: "invalid_request", error_description: "missing code, redirect_uri or code_verifier" };
+      const clientId = body.client_id;
+      if (!code || !redirectUri || !codeVerifier || !clientId) {
+        reply.code(400); return { error: "invalid_request", error_description: "missing code, client_id, redirect_uri or code_verifier" };
       }
       const record = store.consumeCode(code);
       if (!record) { reply.code(400); return { error: "invalid_grant", error_description: "code invalid, expired or already used" }; }
       if (record.redirectUri !== redirectUri) {
         reply.code(400); return { error: "invalid_grant", error_description: "redirect_uri mismatch" };
+      }
+      if (record.clientId !== clientId) {
+        reply.code(400); return { error: "invalid_grant", error_description: "client_id mismatch" };
+      }
+      const resource = resolveResource(body.resource);
+      if (!resource) {
+        reply.code(400); return { error: body.resource ? "invalid_target" : "invalid_request", error_description: "resource is required and must identify this MCP server" };
+      }
+      if (record.resource && record.resource !== resource) {
+        reply.code(400); return { error: "invalid_target", error_description: "resource differs from the authorization request" };
       }
       if (!verifyPkceS256(codeVerifier, record.codeChallenge)) {
         store.audit({ agentId: record.agentId, clientId: record.clientId, action: "token_pkce_fail", success: false });
@@ -346,6 +427,7 @@ export function registerOAuthRoutes(server: FastifyInstance, store: AuthStore, c
         clientId: record.clientId,
         agentId: record.agentId,
         scope: record.scope,
+        resource,
         accessTtlSeconds: config.accessTtlSeconds,
         refreshTtlSeconds: config.refreshTtlSeconds
       });
@@ -361,10 +443,17 @@ export function registerOAuthRoutes(server: FastifyInstance, store: AuthStore, c
 
     if (grantType === "refresh_token") {
       const refreshToken = body.refresh_token;
-      if (!refreshToken) { reply.code(400); return { error: "invalid_request", error_description: "missing refresh_token" }; }
+      const clientId = body.client_id;
+      if (!refreshToken || !clientId) { reply.code(400); return { error: "invalid_request", error_description: "missing refresh_token or client_id" }; }
+      const resource = resolveResource(body.resource);
+      if (!resource) {
+        reply.code(400); return { error: body.resource ? "invalid_target" : "invalid_request", error_description: "resource is required and must identify this MCP server" };
+      }
       const result = store.rotateRefreshToken(refreshToken, {
         accessTtlSeconds: config.accessTtlSeconds,
-        refreshTtlSeconds: config.refreshTtlSeconds
+        refreshTtlSeconds: config.refreshTtlSeconds,
+        clientId,
+        resource
       });
       if ("error" in result) {
         store.audit({ action: "token_refresh_fail", success: false, detail: result.error });

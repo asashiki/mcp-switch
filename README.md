@@ -140,13 +140,16 @@ All via `.env` (see [`.env.example`](.env.example)):
 | `MCP_PUBLIC_URL` | Public origin; **set it to enable OAuth + console**, unset = anonymous local `/mcp` |
 | `MCP_AUTH_DB_PATH` | SQLite file (agents, OAuth, audit, skills, server registry) |
 | `MCP_OAUTH_SCOPE` | OAuth scopes advertised to clients |
+| `MCP_OAUTH_ALLOW_LEGACY_RESOURCE_OMISSION` | Upgrade bridge for old clients that omit RFC 8707 `resource`; turn off after re-authorization |
 | `MCP_CONSOLE_CORS_ORIGINS` | Comma-separated list of allowed console SPA origins (default: `http://localhost:5173,http://localhost:3000`) |
+| `MCP_ALLOWED_HOSTS` / `MCP_ALLOWED_ORIGINS` | Optional MCP transport allowlists; safe values are derived from the public URL when empty |
 | `REMOTE_MCP_SERVERS_JSON` | Optional: pre-seed upstream servers instead of using the console |
 | `MCP_GATEWAY_BIND_HOST` | Bind `0.0.0.0` when running behind a reverse proxy |
 
 ## Docs
 
 - 📖 [使用手册](docs/manual.md) — step-by-step walkthrough of the console.
+- 🛟 [安全升级与回滚](docs/deployment-and-upgrade.zh-CN.md) — test locally, run a parallel VPS canary, then migrate without touching the live instance.
 
 ## Development
 

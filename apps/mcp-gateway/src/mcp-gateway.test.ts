@@ -228,7 +228,10 @@ test("gateway connects to an upstream MCP and re-exposes its tools (single servi
       NODE_ENV: "test",
       MCP_AUTH_DB_PATH: join(directory, "mcp-auth.sqlite"),
       MCP_OAUTH_SCOPE: "tools:read tools:write",
+      MCP_OAUTH_ALLOW_LEGACY_RESOURCE_OMISSION: true,
       MCP_CONSOLE_CORS_ORIGINS: "",
+      MCP_ALLOWED_HOSTS: "",
+      MCP_ALLOWED_ORIGINS: "",
       REMOTE_MCP_SERVERS_JSON: JSON.stringify([
         { id: "up", name: "Upstream", url: `${upstreamAddress}/mcp`, description: "synthetic" }
       ])

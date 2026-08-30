@@ -1,6 +1,7 @@
 import test, { type TestContext } from "node:test";
 import assert from "node:assert/strict";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
+import { DatabaseSync } from "node:sqlite";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { rmSync } from "node:fs";
@@ -14,6 +15,80 @@ function freshStore(t: TestContext): AuthStore {
 }
 
 const TTL = { accessTtlSeconds: 3600, refreshTtlSeconds: 3600, codeTtlSeconds: 300, pendingTtlSeconds: 600 };
+
+test("oauth: legacy SQLite schema migrates additively without invalidating old access tokens", (t) => {
+  const path = join(tmpdir(), `authstore-legacy-${randomUUID()}.sqlite`);
+  const legacyToken = "amcp_at_legacy";
+  const db = new DatabaseSync(path);
+  db.exec(`
+    CREATE TABLE oauth_access_tokens (
+      token_hash TEXT PRIMARY KEY,
+      client_id TEXT NOT NULL,
+      agent_id TEXT NOT NULL,
+      scope TEXT NOT NULL,
+      expires_at TEXT NOT NULL,
+      revoked INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL,
+      last_used_at TEXT
+    );
+    CREATE TABLE oauth_refresh_tokens (
+      token_hash TEXT PRIMARY KEY,
+      client_id TEXT NOT NULL,
+      agent_id TEXT NOT NULL,
+      scope TEXT NOT NULL,
+      chain_id TEXT NOT NULL,
+      expires_at TEXT NOT NULL,
+      revoked INTEGER NOT NULL DEFAULT 0,
+      consumed INTEGER NOT NULL DEFAULT 0,
+      replaced_by_hash TEXT,
+      created_at TEXT NOT NULL
+    );
+  `);
+  db.prepare(`
+    INSERT INTO oauth_access_tokens
+      (token_hash, client_id, agent_id, scope, expires_at, revoked, created_at)
+    VALUES (?, ?, ?, ?, ?, 0, ?)
+  `).run(
+    createHash("sha256").update(legacyToken).digest("hex"),
+    "legacy-client",
+    "legacy-agent",
+    "tools:read",
+    new Date(Date.now() + 3600_000).toISOString(),
+    new Date().toISOString()
+  );
+  db.close();
+
+  const store = new AuthStore(path);
+  store.upsertAgent("legacy-agent", "Legacy agent");
+  t.after(() => {
+    store.close();
+    try { rmSync(path); } catch { /* ignore */ }
+  });
+
+  assert.equal(
+    store.validateAccessToken(legacyToken, "https://mcp.example/mcp", true)?.resource,
+    null,
+    "transition mode accepts an existing unbound token"
+  );
+  assert.equal(
+    store.validateAccessToken(legacyToken, "https://mcp.example/mcp", false),
+    null,
+    "strict mode rejects the same unbound token"
+  );
+
+  const bound = store.issueTokenPair({
+    clientId: "legacy-client",
+    agentId: "legacy-agent",
+    scope: "tools:read",
+    resource: "https://mcp.example/mcp",
+    accessTtlSeconds: 3600,
+    refreshTtlSeconds: 3600
+  });
+  assert.equal(
+    store.validateAccessToken(bound.accessToken, "https://mcp.example/mcp", false)?.resource,
+    "https://mcp.example/mcp"
+  );
+});
 
 function pkcePair() {
   const verifier = randomBytes(40).toString("base64url");
@@ -56,8 +131,9 @@ test("oauth: authorize→code→token, single-use code, PKCE enforced", (t) => {
 test("oauth: refresh rotates; replay revokes the chain", (t) => {
   const s = freshStore(t);
   s.upsertAgent("claude-ai", "Claude.ai");
-  const pair = s.issueTokenPair({ clientId: "c1", agentId: "claude-ai", scope: "tools", accessTtlSeconds: 3600, refreshTtlSeconds: 3600 });
-  assert.ok(s.validateAccessToken(pair.accessToken));
+  const pair = s.issueTokenPair({ clientId: "c1", agentId: "claude-ai", scope: "tools", resource: "https://mcp.example/mcp", accessTtlSeconds: 3600, refreshTtlSeconds: 3600 });
+  assert.ok(s.validateAccessToken(pair.accessToken, "https://mcp.example/mcp", false));
+  assert.equal(s.validateAccessToken(pair.accessToken, "https://other.example/mcp", false), null);
 
   const rotated = s.rotateRefreshToken(pair.refreshToken, TTL);
   assert.ok(!("error" in rotated), "first rotation succeeds");
@@ -65,6 +141,7 @@ test("oauth: refresh rotates; replay revokes the chain", (t) => {
   // replay the now-consumed refresh token → error + chain revoked
   const replay = s.rotateRefreshToken(pair.refreshToken, TTL);
   assert.ok("error" in replay && replay.error === "replayed");
+  assert.equal(s.validateAccessToken(pair.accessToken), null, "replay revokes access tokens on the same chain");
 
   // the rotated refresh token is now also revoked (whole chain)
   const afterReplay = !("error" in rotated) ? s.rotateRefreshToken(rotated.refreshToken, TTL) : null;

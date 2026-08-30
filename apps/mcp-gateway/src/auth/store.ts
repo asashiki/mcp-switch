@@ -28,6 +28,7 @@ export interface PendingAuthorization {
   codeChallenge: string;
   codeChallengeMethod: string;
   scope: string;
+  resource: string | null;
   state: string | null;
   createdAt: string;
   expiresAt: string;
@@ -38,6 +39,7 @@ export interface AccessTokenContext {
   clientId: string;
   agentId: string;
   scope: string;
+  resource: string | null;
   expiresAt: number;
 }
 
@@ -93,6 +95,7 @@ export class AuthStore {
         code_challenge TEXT NOT NULL,
         code_challenge_method TEXT NOT NULL,
         scope TEXT NOT NULL,
+        resource TEXT,
         state TEXT,
         created_at TEXT NOT NULL,
         expires_at TEXT NOT NULL
@@ -106,6 +109,7 @@ export class AuthStore {
         code_challenge TEXT NOT NULL,
         code_challenge_method TEXT NOT NULL,
         scope TEXT NOT NULL,
+        resource TEXT,
         expires_at TEXT NOT NULL,
         consumed INTEGER NOT NULL DEFAULT 0,
         created_at TEXT NOT NULL
@@ -116,6 +120,8 @@ export class AuthStore {
         client_id TEXT NOT NULL,
         agent_id TEXT NOT NULL,
         scope TEXT NOT NULL,
+        resource TEXT,
+        chain_id TEXT,
         expires_at TEXT NOT NULL,
         revoked INTEGER NOT NULL DEFAULT 0,
         created_at TEXT NOT NULL,
@@ -127,6 +133,7 @@ export class AuthStore {
         client_id TEXT NOT NULL,
         agent_id TEXT NOT NULL,
         scope TEXT NOT NULL,
+        resource TEXT,
         chain_id TEXT NOT NULL,
         expires_at TEXT NOT NULL,
         revoked INTEGER NOT NULL DEFAULT 0,
@@ -227,6 +234,18 @@ export class AuthStore {
     // read/write classification (1=read-only, 0=write, NULL=unknown), so the
     // console can tag a skill 可读/写入 for local + remote uniformly.
     try { this.db.exec(`ALTER TABLE skill_registry ADD COLUMN read_only INTEGER`); } catch { /* exists */ }
+
+    // RFC 8707 audience binding. Nullable columns keep existing deployments
+    // readable during their short token transition window.
+    for (const migration of [
+      `ALTER TABLE oauth_pending ADD COLUMN resource TEXT`,
+      `ALTER TABLE oauth_codes ADD COLUMN resource TEXT`,
+      `ALTER TABLE oauth_access_tokens ADD COLUMN resource TEXT`,
+      `ALTER TABLE oauth_access_tokens ADD COLUMN chain_id TEXT`,
+      `ALTER TABLE oauth_refresh_tokens ADD COLUMN resource TEXT`
+    ]) {
+      try { this.db.exec(migration); } catch { /* exists */ }
+    }
 
     // remote_servers OAuth client/token state (RFC 8414 discovery + RFC 7591 DCR).
     const remoteOauthColumns = [
@@ -364,11 +383,11 @@ export class AuthStore {
     const expiresAt = plusSeconds(input.ttlSeconds);
     this.db.prepare(`
       INSERT INTO oauth_pending
-        (pending_id, client_id, client_name, redirect_uri, code_challenge, code_challenge_method, scope, state, created_at, expires_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        (pending_id, client_id, client_name, redirect_uri, code_challenge, code_challenge_method, scope, resource, state, created_at, expires_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       pendingId, input.clientId, input.clientName, input.redirectUri,
-      input.codeChallenge, input.codeChallengeMethod, input.scope, input.state ?? null,
+      input.codeChallenge, input.codeChallengeMethod, input.scope, input.resource ?? null, input.state ?? null,
       createdAt, expiresAt
     );
     return { pendingId, createdAt, expiresAt, ...input };
@@ -391,6 +410,7 @@ export class AuthStore {
       codeChallenge: String(row.code_challenge),
       codeChallengeMethod: String(row.code_challenge_method),
       scope: String(row.scope),
+      resource: row.resource ? String(row.resource) : null,
       state: row.state ? String(row.state) : null,
       createdAt: String(row.created_at),
       expiresAt: String(row.expires_at)
@@ -410,16 +430,17 @@ export class AuthStore {
     codeChallenge: string;
     codeChallengeMethod: string;
     scope: string;
+    resource?: string | null;
     ttlSeconds: number;
   }): string {
     const code = generateToken(TOKEN_PREFIX.code);
     this.db.prepare(`
       INSERT INTO oauth_codes
-        (code_hash, client_id, agent_id, redirect_uri, code_challenge, code_challenge_method, scope, expires_at, consumed, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?)
+        (code_hash, client_id, agent_id, redirect_uri, code_challenge, code_challenge_method, scope, resource, expires_at, consumed, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)
     `).run(
       sha256hex(code), input.clientId, input.agentId, input.redirectUri,
-      input.codeChallenge, input.codeChallengeMethod, input.scope,
+      input.codeChallenge, input.codeChallengeMethod, input.scope, input.resource ?? null,
       plusSeconds(input.ttlSeconds), nowIso()
     );
     // Mark agent as authorized.
@@ -435,6 +456,7 @@ export class AuthStore {
     codeChallenge: string;
     codeChallengeMethod: string;
     scope: string;
+    resource: string | null;
   } | null {
     const hash = sha256hex(code);
     const row = this.db.prepare(`SELECT * FROM oauth_codes WHERE code_hash = ?`).get(hash) as
@@ -453,7 +475,8 @@ export class AuthStore {
       redirectUri: String(row.redirect_uri),
       codeChallenge: String(row.code_challenge),
       codeChallengeMethod: String(row.code_challenge_method),
-      scope: String(row.scope)
+      scope: String(row.scope),
+      resource: row.resource ? String(row.resource) : null
     };
   }
 
@@ -463,6 +486,7 @@ export class AuthStore {
     clientId: string;
     agentId: string;
     scope: string;
+    resource?: string | null;
     accessTtlSeconds: number;
     refreshTtlSeconds: number;
     chainId?: string;
@@ -472,24 +496,38 @@ export class AuthStore {
     const chainId = input.chainId ?? randomId(16);
     const createdAt = nowIso();
     this.db.prepare(`
-      INSERT INTO oauth_access_tokens (token_hash, client_id, agent_id, scope, expires_at, revoked, created_at)
-      VALUES (?, ?, ?, ?, ?, 0, ?)
-    `).run(sha256hex(accessToken), input.clientId, input.agentId, input.scope, plusSeconds(input.accessTtlSeconds), createdAt);
+      INSERT INTO oauth_access_tokens
+        (token_hash, client_id, agent_id, scope, resource, chain_id, expires_at, revoked, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?)
+    `).run(
+      sha256hex(accessToken), input.clientId, input.agentId, input.scope,
+      input.resource ?? null, chainId, plusSeconds(input.accessTtlSeconds), createdAt
+    );
     this.db.prepare(`
-      INSERT INTO oauth_refresh_tokens (token_hash, client_id, agent_id, scope, chain_id, expires_at, revoked, consumed, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, 0, 0, ?)
-    `).run(sha256hex(refreshToken), input.clientId, input.agentId, input.scope, chainId, plusSeconds(input.refreshTtlSeconds), createdAt);
+      INSERT INTO oauth_refresh_tokens
+        (token_hash, client_id, agent_id, scope, resource, chain_id, expires_at, revoked, consumed, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, ?)
+    `).run(
+      sha256hex(refreshToken), input.clientId, input.agentId, input.scope,
+      input.resource ?? null, chainId, plusSeconds(input.refreshTtlSeconds), createdAt
+    );
     return { accessToken, refreshToken, expiresIn: input.accessTtlSeconds, chainId };
   }
 
   /** Validate a bearer access token. Returns context if valid + agent enabled. */
-  validateAccessToken(token: string): AccessTokenContext | null {
+  validateAccessToken(
+    token: string,
+    expectedResource?: string,
+    allowLegacyUnbound = true
+  ): AccessTokenContext | null {
     const hash = sha256hex(token);
     const row = this.db.prepare(`SELECT * FROM oauth_access_tokens WHERE token_hash = ?`).get(hash) as
       | Record<string, unknown>
       | undefined;
     if (!row) return null;
     if (Number(row.revoked) === 1 || String(row.expires_at) < nowIso()) return null;
+    const resource = row.resource ? String(row.resource) : null;
+    if (expectedResource && resource !== expectedResource && !(allowLegacyUnbound && resource === null)) return null;
     const agentId = String(row.agent_id);
     const agent = this.getAgent(agentId);
     if (!agent || !agent.enabled) return null;
@@ -500,6 +538,7 @@ export class AuthStore {
       clientId: String(row.client_id),
       agentId,
       scope: String(row.scope),
+      resource,
       expiresAt: Math.floor(new Date(String(row.expires_at)).getTime() / 1000)
     };
   }
@@ -508,8 +547,13 @@ export class AuthStore {
    * Rotate a refresh token. On valid single-use, consume it and issue a new
    * pair on the same chain. On replay (already consumed), revoke the whole chain.
    */
-  rotateRefreshToken(refreshToken: string, opts: { accessTtlSeconds: number; refreshTtlSeconds: number }):
-    | { accessToken: string; refreshToken: string; expiresIn: number; scope: string; agentId: string }
+  rotateRefreshToken(refreshToken: string, opts: {
+    accessTtlSeconds: number;
+    refreshTtlSeconds: number;
+    clientId?: string;
+    resource?: string;
+  }):
+    | { accessToken: string; refreshToken: string; expiresIn: number; scope: string; agentId: string; clientId: string; resource: string | null }
     | { error: "invalid" | "replayed" | "expired" | "agent_disabled" } {
     const hash = sha256hex(refreshToken);
     const row = this.db.prepare(`SELECT * FROM oauth_refresh_tokens WHERE token_hash = ?`).get(hash) as
@@ -517,6 +561,9 @@ export class AuthStore {
       | undefined;
     if (!row) return { error: "invalid" };
     if (Number(row.revoked) === 1) return { error: "invalid" };
+    if (opts.clientId && String(row.client_id) !== opts.clientId) return { error: "invalid" };
+    const storedResource = row.resource ? String(row.resource) : null;
+    if (opts.resource && storedResource && storedResource !== opts.resource) return { error: "invalid" };
     if (Number(row.consumed) === 1) {
       // Replay detected — revoke the entire chain.
       const chainId = String(row.chain_id);
@@ -532,23 +579,26 @@ export class AuthStore {
     const clientId = String(row.client_id);
     const chainId = String(row.chain_id);
     const pair = this.issueTokenPair({
-      clientId, agentId, scope, chainId,
+      clientId, agentId, scope, chainId, resource: storedResource ?? opts.resource ?? null,
       accessTtlSeconds: opts.accessTtlSeconds,
       refreshTtlSeconds: opts.refreshTtlSeconds
     });
     this.db.prepare(`UPDATE oauth_refresh_tokens SET consumed = 1, replaced_by_hash = ? WHERE token_hash = ?`)
       .run(sha256hex(pair.refreshToken), hash);
-    return { accessToken: pair.accessToken, refreshToken: pair.refreshToken, expiresIn: pair.expiresIn, scope, agentId };
+    return {
+      accessToken: pair.accessToken,
+      refreshToken: pair.refreshToken,
+      expiresIn: pair.expiresIn,
+      scope,
+      agentId,
+      clientId,
+      resource: storedResource ?? opts.resource ?? null
+    };
   }
 
   revokeChain(chainId: string): void {
-    const rows = this.db.prepare(`SELECT agent_id FROM oauth_refresh_tokens WHERE chain_id = ? LIMIT 1`).get(chainId) as
-      | { agent_id: string }
-      | undefined;
     this.db.prepare(`UPDATE oauth_refresh_tokens SET revoked = 1 WHERE chain_id = ?`).run(chainId);
-    // Access tokens don't carry chain_id; revoke by agent as a safe superset is too broad,
-    // so we rely on their short TTL. Refresh chain is fully revoked here.
-    void rows;
+    this.db.prepare(`UPDATE oauth_access_tokens SET revoked = 1 WHERE chain_id = ?`).run(chainId);
   }
 
   /** Revoke a single token (access or refresh) by its plaintext value. */
@@ -912,6 +962,21 @@ export class AuthStore {
         serverName
       };
     });
+  }
+
+  getSkillReadOnly(skillId: string): boolean | null {
+    const row = this.db.prepare(`SELECT read_only, remote_meta FROM skill_registry WHERE skill_id = ?`).get(skillId) as
+      | { read_only: number | null; remote_meta: string | null }
+      | undefined;
+    if (!row) return null;
+    if (row.read_only !== null && row.read_only !== undefined) return Number(row.read_only) === 1;
+    if (row.remote_meta) {
+      try {
+        const meta = JSON.parse(row.remote_meta) as { readOnly?: unknown };
+        if (typeof meta.readOnly === "boolean") return meta.readOnly;
+      } catch { /* malformed legacy metadata */ }
+    }
+    return null;
   }
 
   /** Replace the stored UI resources for a remote server (set at discovery time). */

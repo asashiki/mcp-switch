@@ -13,7 +13,10 @@ const { server: mcpGateway } = await createMcpGatewayApp({
     NODE_ENV: "test",
     MCP_AUTH_DB_PATH: join(directory, "mcp-auth.sqlite"),
     MCP_OAUTH_SCOPE: "tools:read tools:write",
-    MCP_CONSOLE_CORS_ORIGINS: ""
+    MCP_OAUTH_ALLOW_LEGACY_RESOURCE_OMISSION: true,
+    MCP_CONSOLE_CORS_ORIGINS: "",
+    MCP_ALLOWED_HOSTS: "",
+    MCP_ALLOWED_ORIGINS: ""
   },
   logger: false
 });
