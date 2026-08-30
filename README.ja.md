@@ -2,11 +2,7 @@
 
 # MCP Switch
 
-**1 つの MCP エンドポイントで、ローカルとリモートのすべての MCP を集約。**
-
-セルフホスト型のゲートウェイ。ローカルとリモートの MCP サーバーを、
-OAuth で保護された 1 つのエンドポイントに集約し、MCP機能を搭載したあらゆるAI
-（claude.ai、ChatGPT など）へ公開します。
+**ローカルとリモートのすべての MCP サーバーを、ChatGPT や Claude などの Web AI で使える安全な 1 つのコネクタに。**
 
 ![license](https://img.shields.io/badge/license-MIT-e96ba8)
 ![node](https://img.shields.io/badge/node-%E2%89%A524-3c873a)
@@ -18,6 +14,8 @@ OAuth で保護された 1 つのエンドポイントに集約し、MCP機能�
 
 </div>
 
+![MCP Switch がローカルとリモートの MCP サーバーを 1 つのエンドポイントで Web AI へ接続](.github/assets/overview.svg)
+
 ---
 
 ## なぜ
@@ -25,14 +23,6 @@ OAuth で保護された 1 つのエンドポイントに集約し、MCP機能�
 Web/App の AI は**リモート** MCP にしか接続できず、しかもカスタムコネクタの枠は
 たいてい**1 つ**だけ。一方で便利な MCP の多くは**ローカル**の stdio プロセス
 （`npx`/`uvx`）で、Claude Desktop / CLI からしか起動できません。
-
-MCP Switch はその間に入ります：
-
-```
-   ローカル stdio MCP  ─┐
-                       ┼──►  MCP Switch  ──►  1 つの OAuth URL  ──►  claude.ai / ChatGPT / …
-   リモート HTTP MCP   ─┘     (あなたの VPS)
-```
 
 - 任意の数の MCP——リモート（URL）でもローカル（stdio、自分のマシンでホスト）でも——を 1 つのエンドポイントに**集約**。
 - **一度つなぐだけ。** AI には 1 つのコネクタだけが見え、その背後にすべてのツールがあります。
