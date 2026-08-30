@@ -59,11 +59,13 @@ export function createRegistryClient(registry: RemoteMcpRegistry, store: AuthSto
         ? `stdio://${[d.command, ...(d.args ?? [])].join(" ")}`.slice(0, 240)
         : d.url!;
       store.upsertRemoteServerConfig({ ...d, url, description: d.description ?? d.name });
+      await registry.invalidateServer(d.id);
       return { ok: true as const, id: d.id };
     },
 
     async deleteRemoteServer(id: string) {
       const deleted = store.deleteRemoteServerConfig(id);
+      await registry.invalidateServer(id);
       return { ok: true as const, deleted };
     },
 

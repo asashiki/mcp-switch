@@ -69,8 +69,12 @@ export const remoteMcpToolSchema = z.object({
   title: z.string().nullable(),
   description: z.string().nullable(),
   readOnlyHint: z.boolean(),
-  requiredArguments: z.array(z.string().min(1)).max(24),
+  requiredArguments: z.array(z.string().min(1)).max(256),
   inputSchema: z.record(z.string(), z.unknown()),
+  outputSchema: z.record(z.string(), z.unknown()).nullable().optional(),
+  annotations: z.record(z.string(), z.unknown()).nullable().optional(),
+  icons: z.array(z.record(z.string(), z.unknown())).max(32).nullable().optional(),
+  execution: z.record(z.string(), z.unknown()).nullable().optional(),
   /** Tool-definition _meta (e.g. MCP Apps ui.resourceUri / openai outputTemplate). */
   meta: z.record(z.string(), z.unknown()).nullable().optional()
 });
@@ -116,9 +120,9 @@ export const remoteMcpServerSchema = z.object({
   toolCount: z.number().int().nonnegative(),
   readOnlyToolCount: z.number().int().nonnegative(),
   writeToolCount: z.number().int().nonnegative(),
-  tools: z.array(remoteMcpToolSchema).max(32),
+  tools: z.array(remoteMcpToolSchema).max(512),
   /** UI/template resources the server exposes (for MCP Apps passthrough). */
-  resources: z.array(remoteMcpResourceSchema).max(32).optional()
+  resources: z.array(remoteMcpResourceSchema).max(512).optional()
 });
 
 export type RemoteMcpServer = z.infer<typeof remoteMcpServerSchema>;

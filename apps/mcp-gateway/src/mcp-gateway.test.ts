@@ -11,6 +11,7 @@ import { toNodeHandler } from "@modelcontextprotocol/node";
 import { createMcpGatewayServer } from "./mcp.js";
 import { createMcpGatewayApp } from "./app.js";
 import type { RegistryClient } from "./registry/client.js";
+import { MCP_APP_MIME_TYPE, proxyToolName } from "./registry/proxy-metadata.js";
 
 // MCP Switch ships no built-in tools — it re-exposes upstream tools as
 // `rmcp__<server>__<tool>`. This verifies the aggregation path AND the argument
@@ -68,12 +69,137 @@ test("gateway aggregates an upstream tool and coerces argument types", async () 
   }
 });
 
+test("gateway preserves rich tool metadata and isolates colliding MCP Apps resources", async () => {
+  const calls: Array<{ serverId: string; args: Record<string, unknown> }> = [];
+  const fakeClient = {
+    async proxyRemoteMcpTool(serverId: string, _toolName: string, args: Record<string, unknown>) {
+      calls.push({ serverId, args });
+      return {
+        content: [{ type: "image", data: "aGVsbG8=", mimeType: "image/png" }],
+        structuredContent: { kind: "image" },
+        isError: false,
+        meta: { ui: { resourceUri: "ui://widget/index.html" } }
+      };
+    }
+  } as unknown as RegistryClient;
+
+  const complexSchema = {
+    type: "object",
+    properties: {
+      mode: { $ref: "#/$defs/mode" },
+      amount: { type: "integer", minimum: 1, maximum: 9 }
+    },
+    required: ["mode", "amount"],
+    additionalProperties: false,
+    $defs: { mode: { type: "string", pattern: "^[a-z]+$" } }
+  };
+  const outputSchema = {
+    type: "object",
+    properties: { kind: { const: "image" } },
+    required: ["kind"],
+    additionalProperties: false
+  };
+  const sharedUri = "ui://widget/index.html";
+  const remoteTools = ["alpha", "beta"].map((serverId) => ({
+    skillId: `rmcp__${serverId}__render`,
+    title: `${serverId} render`,
+    description: "rich proxy",
+    serverId,
+    toolName: "render",
+    readOnly: true,
+    allowWrite: true,
+    inputSchema: complexSchema,
+    outputSchema,
+    annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+    icons: [{ src: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg'/>", mimeType: "image/svg+xml" }],
+    meta: { ui: { resourceUri: sharedUri } }
+  }));
+  const remoteResources = ["alpha", "beta"].map((serverId) => ({
+    serverId,
+    uri: sharedUri,
+    name: "widget",
+    title: `${serverId} widget`,
+    description: null,
+    mimeType: "text/html+skybridge",
+    meta: {
+      "openai/widgetCSP": {
+        connect_domains: ["https://api.example.com"],
+        resource_domains: ["https://cdn.example.com"]
+      }
+    }
+  }));
+
+  const server = createMcpGatewayServer(fakeClient, {
+    remoteTools,
+    remoteResources,
+    readRemoteResource: async (serverId, uri) => ({
+      contents: [{ uri, mimeType: "text/html", text: `<main>${serverId}</main>` }]
+    })
+  });
+  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+  const client = new Client({ name: "metadata-client", version: "0.0.0" });
+  await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
+
+  try {
+    const listed = await client.listTools();
+    const alpha = listed.tools.find((tool) => tool.name === "rmcp__alpha__render")!;
+    const beta = listed.tools.find((tool) => tool.name === "rmcp__beta__render")!;
+    assert.deepEqual(alpha.inputSchema, complexSchema, "raw JSON Schema survives the gateway");
+    assert.deepEqual(alpha.outputSchema, outputSchema);
+    assert.equal(alpha.annotations?.openWorldHint, false);
+    assert.equal(alpha.icons?.[0]?.mimeType, "image/svg+xml");
+    const alphaUri = (alpha._meta?.ui as { resourceUri?: string })?.resourceUri;
+    const betaUri = (beta._meta?.ui as { resourceUri?: string })?.resourceUri;
+    assert.ok(alphaUri?.startsWith("ui://mcp-switch/alpha/"));
+    assert.ok(betaUri?.startsWith("ui://mcp-switch/beta/"));
+    assert.notEqual(alphaUri, betaUri, "same upstream URI cannot collide after aggregation");
+    assert.equal(alpha._meta?.["openai/outputTemplate"], alphaUri);
+
+    const resources = await client.listResources();
+    assert.deepEqual(new Set(resources.resources.map((resource) => resource.uri)), new Set([alphaUri, betaUri]));
+    const alphaResource = resources.resources.find((resource) => resource.uri === alphaUri)!;
+    assert.equal(alphaResource.mimeType, MCP_APP_MIME_TYPE);
+    const read = await client.readResource({ uri: alphaUri! });
+    assert.equal(read.contents[0]?.mimeType, MCP_APP_MIME_TYPE);
+    assert.equal("text" in read.contents[0]! ? read.contents[0].text : undefined, "<main>alpha</main>");
+
+    const result = await client.callTool({
+      name: "rmcp__alpha__render",
+      arguments: { mode: "compact", amount: "2" }
+    });
+    assert.equal(result.content[0]?.type, "image", "non-text result content is preserved");
+    assert.equal(calls[0]?.args.amount, 2, "lossless compatibility coercion still applies");
+  } finally {
+    await client.close();
+  }
+});
+
+test("proxy tool names remain compatible, legal, bounded, and deterministic", () => {
+  assert.equal(proxyToolName("demo", "echo"), "rmcp__demo__echo");
+  const unusual = proxyToolName("音乐 server", "播放/下一首");
+  assert.match(unusual, /^[A-Za-z0-9_.-]{1,128}$/);
+  const long = proxyToolName("server", "x".repeat(300));
+  assert.equal(long.length, 128);
+  assert.equal(long, proxyToolName("server", "x".repeat(300)));
+});
+
 // End-to-end through the in-process registry: a synthetic upstream MCP server is
 // seeded via REMOTE_MCP_SERVERS_JSON; the gateway connects to it, discovers its
 // tools, and re-exposes them on its own /mcp (anonymous mode, no separate backend).
 test("gateway connects to an upstream MCP and re-exposes its tools (single service)", async () => {
   const directory = mkdtempSync(join(tmpdir(), "mcp-switch-e2e-"));
   const upstreamApp = Fastify({ logger: false });
+  const upstreamMethodCounts = new Map<string, number>();
+  upstreamApp.addHook("preHandler", async (request) => {
+    const body = request.body && typeof request.body === "object"
+      ? request.body as { method?: unknown }
+      : undefined;
+    const header = request.headers["mcp-method"];
+    const method = typeof header === "string"
+      ? header
+      : typeof body?.method === "string" ? body.method : undefined;
+    if (method) upstreamMethodCounts.set(method, (upstreamMethodCounts.get(method) ?? 0) + 1);
+  });
   const upstream = new McpServer({ name: "upstream", version: "0.1.0" });
   upstream.registerTool(
     "echo",
@@ -110,6 +236,7 @@ test("gateway connects to an upstream MCP and re-exposes its tools (single servi
     logger: false
   });
   const gatewayAddress = await gateway.listen({ host: "127.0.0.1", port: 0 });
+  const listCallsAfterStartup = upstreamMethodCounts.get("tools/list") ?? 0;
 
   const client = new Client(
     { name: "e2e-client", version: "0.0.0" },
@@ -124,6 +251,13 @@ test("gateway connects to an upstream MCP and re-exposes its tools (single servi
     const res = await client.callTool({ name: "rmcp__up__echo", arguments: { count: 3 } });
     assert.ok(!res.isError);
     assert.equal((res.structuredContent as { count?: number })?.count, 3);
+    const second = await client.callTool({ name: "rmcp__up__echo", arguments: { count: 4 } });
+    assert.equal((second.structuredContent as { count?: number })?.count, 4);
+    assert.equal(
+      upstreamMethodCounts.get("tools/list") ?? 0,
+      listCallsAfterStartup,
+      "tool calls reuse the discovered catalog instead of reconnecting and listing first"
+    );
 
     // The same endpoint keeps serving pre-2026 clients through the stateless
     // compatibility path; deployments do not need a flag day migration.

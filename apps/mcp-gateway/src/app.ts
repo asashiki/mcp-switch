@@ -16,6 +16,7 @@ import { registerOAuthRoutes } from "./auth/routes.js";
 import { parseBearer } from "./auth/tokens.js";
 import { registerConsoleApi } from "./console/api.js";
 import { registerConsoleSpa } from "./console/spa.js";
+import { proxyToolName, resourceUrisFromMeta } from "./registry/proxy-metadata.js";
 
 export const mcpGatewayEnvSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
@@ -59,21 +60,6 @@ export function loadMcpGatewayEnv(source: NodeJS.ProcessEnv): McpGatewayEnv {
       MCP_CONSOLE_CORS_ORIGINS: z.string().default("http://localhost:5173,http://localhost:3000")
     })
   );
-}
-
-/**
- * Extract widget/template resource URIs referenced by a tool's _meta, across
- * the known MCP-Apps namespaces (Claude `ui.resourceUri`, ChatGPT
- * `openai/outputTemplate`). Generic: no per-server knowledge.
- */
-function resourceUrisFromMeta(meta: Record<string, unknown> | null | undefined): string[] {
-  if (!meta || typeof meta !== "object") return [];
-  const out: string[] = [];
-  const ui = meta.ui as { resourceUri?: unknown } | undefined;
-  if (ui && typeof ui.resourceUri === "string") out.push(ui.resourceUri);
-  const tmpl = meta["openai/outputTemplate"];
-  if (typeof tmpl === "string") out.push(tmpl);
-  return out;
 }
 
 export async function createMcpGatewayApp(options?: {
@@ -179,14 +165,25 @@ export async function createMcpGatewayApp(options?: {
         for (const r of s.resources ?? []) resourceByUri.set(r.uri, r);
         for (const tool of s.tools ?? []) {
           store.seedSkill({
-            skillId: `rmcp__${s.id}__${tool.name}`,
+            skillId: proxyToolName(s.id, tool.name),
             title: `${s.name}: ${tool.title ?? tool.name}`,
             category: "remote",
             source: "remote-mcp",
             enabled: tool.readOnlyHint !== false,
             description: tool.description ?? null,
             readOnly: tool.readOnlyHint,
-            remoteMeta: { serverId: s.id, serverName: s.name, toolName: tool.name, inputSchema: tool.inputSchema ?? {}, readOnly: tool.readOnlyHint, toolMeta: tool.meta ?? null }
+            remoteMeta: {
+              serverId: s.id,
+              serverName: s.name,
+              toolName: tool.name,
+              inputSchema: tool.inputSchema ?? {},
+              outputSchema: tool.outputSchema ?? null,
+              annotations: tool.annotations ?? null,
+              icons: tool.icons ?? null,
+              execution: tool.execution ?? null,
+              readOnly: tool.readOnlyHint,
+              toolMeta: tool.meta ?? null
+            }
           });
           seeded += 1;
           for (const uri of resourceUrisFromMeta(tool.meta)) {
@@ -260,6 +257,7 @@ export async function createMcpGatewayApp(options?: {
 
   server.addHook("onClose", async () => {
     await mcpHandler.close();
+    await registry.close();
     store.close();
   });
 

@@ -663,7 +663,10 @@ export class AuthStore {
   } {
     const nowMs = Date.now() - offsetSeconds * 1000;
     const cutoff = new Date(nowMs - windowSeconds * 1000).toISOString();
-    const upper = new Date(nowMs).toISOString();
+    // JavaScript and SQLite timestamps both have millisecond precision. Include
+    // rows written in the same clock tick as this snapshot while retaining an
+    // exclusive SQL upper bound.
+    const upper = new Date(nowMs + 1).toISOString();
 
     const totals = this.db.prepare(`
       SELECT COUNT(*) AS total, SUM(CASE WHEN success = 0 THEN 1 ELSE 0 END) AS errors
@@ -789,7 +792,18 @@ export class AuthStore {
     sortOrder?: number;
     /** read-only? true=read, false=write, undefined=unknown. */
     readOnly?: boolean;
-    remoteMeta?: { serverId: string; serverName?: string; toolName: string; inputSchema: Record<string, unknown>; readOnly?: boolean; toolMeta?: Record<string, unknown> | null } | null;
+    remoteMeta?: {
+      serverId: string;
+      serverName?: string;
+      toolName: string;
+      inputSchema: Record<string, unknown>;
+      outputSchema?: Record<string, unknown> | null;
+      annotations?: Record<string, unknown> | null;
+      icons?: Array<Record<string, unknown>> | null;
+      execution?: Record<string, unknown> | null;
+      readOnly?: boolean;
+      toolMeta?: Record<string, unknown> | null;
+    } | null;
   }): void {
     const remoteJson = input.remoteMeta ? JSON.stringify(input.remoteMeta) : null;
     const readOnly = input.readOnly === undefined ? null : (input.readOnly ? 1 : 0);
@@ -809,7 +823,21 @@ export class AuthStore {
   }
 
   /** Remote-tool descriptors for the given enabled+visible skill ids. */
-  getRemoteDescriptors(ids: Set<string>): Array<{ skillId: string; title: string; description: string | null; serverId: string; toolName: string; inputSchema: Record<string, unknown>; readOnly: boolean; allowWrite: boolean; meta: Record<string, unknown> | null }> {
+  getRemoteDescriptors(ids: Set<string>): Array<{
+    skillId: string;
+    title: string;
+    description: string | null;
+    serverId: string;
+    toolName: string;
+    inputSchema: Record<string, unknown>;
+    outputSchema: Record<string, unknown> | null;
+    annotations: Record<string, unknown> | null;
+    icons: Array<Record<string, unknown>> | null;
+    execution: Record<string, unknown> | null;
+    readOnly: boolean;
+    allowWrite: boolean;
+    meta: Record<string, unknown> | null;
+  }> {
     if (ids.size === 0) return [];
     const rows = this.db.prepare(`SELECT skill_id, title, description, remote_meta, allow_write FROM skill_registry WHERE source = 'remote-mcp' AND remote_meta IS NOT NULL`).all() as Record<string, unknown>[];
     const out = [];
@@ -817,12 +845,36 @@ export class AuthStore {
       const id = String(r.skill_id);
       if (!ids.has(id)) continue;
       try {
-        const m = JSON.parse(String(r.remote_meta)) as { serverId: string; toolName: string; inputSchema: Record<string, unknown>; readOnly?: boolean; toolMeta?: Record<string, unknown> | null };
+        const m = JSON.parse(String(r.remote_meta)) as {
+          serverId: string;
+          toolName: string;
+          inputSchema: Record<string, unknown>;
+          outputSchema?: Record<string, unknown> | null;
+          annotations?: Record<string, unknown> | null;
+          icons?: Array<Record<string, unknown>> | null;
+          execution?: Record<string, unknown> | null;
+          readOnly?: boolean;
+          toolMeta?: Record<string, unknown> | null;
+        };
         // Enabling a remote skill IS the write opt-in now (the per-tool
         // allow_write sub-toggle was removed): any enabled tool is allowed to
         // run, write or not. getRemoteDescriptors is only ever called with the
         // enabled+visible id set, so allowWrite is unconditionally true here.
-        out.push({ skillId: id, title: String(r.title), description: r.description ? String(r.description) : null, serverId: m.serverId, toolName: m.toolName, inputSchema: m.inputSchema ?? {}, readOnly: m.readOnly === true, allowWrite: true, meta: m.toolMeta ?? null });
+        out.push({
+          skillId: id,
+          title: String(r.title),
+          description: r.description ? String(r.description) : null,
+          serverId: m.serverId,
+          toolName: m.toolName,
+          inputSchema: m.inputSchema ?? {},
+          outputSchema: m.outputSchema ?? null,
+          annotations: m.annotations ?? null,
+          icons: m.icons ?? null,
+          execution: m.execution ?? null,
+          readOnly: m.readOnly === true,
+          allowWrite: true,
+          meta: m.toolMeta ?? null
+        });
       } catch { /* skip malformed */ }
     }
     return out;
