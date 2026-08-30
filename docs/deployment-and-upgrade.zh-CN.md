@@ -2,6 +2,8 @@
 
 这份流程的目标不是在正在使用的 VPS 实例上“原地赌一次”，而是先复制数据、并行启动候选版本、完成真实客户端验证，再决定是否切流量。
 
+本机公网测试、Cloudflare Tunnel、Cloud Run/Containers 与免费 VM 的取舍见 [2026 部署与远程测试选择](./deployment-options-2026.zh-CN.md)。仓库同时提供 `pnpm check:remote`，用于只读检查公网 canary 的 OAuth、双协议目录和 MCP Apps 资源。
+
 ## 1. 本地无认证试玩
 
 本地模式可以完整测试网关、控制台、远程 HTTP 上游和本机可运行的 stdio 上游。它与部署在公网的协议实现相同；区别只是没有公网 HTTPS URL，因此 ChatGPT、claude.ai 等网页端不能直接回连。
@@ -12,6 +14,7 @@ cp .env.example .env.local-test
 docker compose -f infra/docker/compose.yaml --env-file .env.local-test \
   -p mcp-switch-local up -d --build
 curl http://127.0.0.1:4577/health
+pnpm check:remote -- --url http://127.0.0.1:4577
 ```
 
 本轮容器默认以非 root 用户运行、根文件系统只读，并丢弃 Linux capabilities。`npx` 的临时下载写入 `/tmp`；需要持久写文件的 stdio MCP 应显式挂载一个专用目录，不能依赖写入应用目录。
@@ -55,6 +58,8 @@ MCP_OAUTH_ALLOW_LEGACY_RESOURCE_OMISSION=true
 docker compose -f infra/docker/compose.yaml --env-file .env.canary \
   -p mcp-switch-canary up -d --build
 ```
+
+若使用 named Cloudflare Tunnel，可叠加 `infra/docker/compose.tunnel.yaml`；具体 token-file 和域名配置见部署选择文档。
 
 canary 的 `MCP_PUBLIC_URL` 必须与客户端实际连接的 canonical `/mcp` URL 一致，否则 RFC 8707 resource/audience 校验会正确拒绝 token。
 

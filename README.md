@@ -150,6 +150,8 @@ All via `.env` (see [`.env.example`](.env.example)):
 
 - 📖 [使用手册](docs/manual.md) — step-by-step walkthrough of the console.
 - 🛟 [安全升级与回滚](docs/deployment-and-upgrade.zh-CN.md) — test locally, run a parallel VPS canary, then migrate without touching the live instance.
+- 🌐 [2026 部署与远程测试选择](docs/deployment-options-2026.zh-CN.md) — local, Cloudflare Tunnel/Containers/Workers, Cloud Run and free VM trade-offs.
+- 🧩 [MCP Apps App Lab](docs/mcp-apps-app-lab.zh-CN.md) — diagnose cross-host component metadata, MIME, CSP and bridge behavior.
 
 ## Development
 

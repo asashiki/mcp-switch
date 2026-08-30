@@ -16,6 +16,7 @@
     "build:services": "pnpm --filter @mcp-switch/console-web build && pnpm --filter @mcp-switch/mcp-gateway build",
     "typecheck": "pnpm -r typecheck",
     "smoke": "pnpm --filter @mcp-switch/mcp-gateway smoke",
+    "check:remote": "pnpm --filter @mcp-switch/mcp-gateway check:remote",
     "test": "pnpm --filter @mcp-switch/mcp-gateway test"
   },
   "devDependencies": {
