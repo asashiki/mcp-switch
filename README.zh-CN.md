@@ -2,10 +2,7 @@
 
 # MCP Switch
 
-**一个 MCP 端点，聚合你所有的本地和远程 MCP。**
-
-一个自托管网关：把你的本地和远程 MCP 服务器聚合到一个 OAuth 保护的端点之后，
-再统一暴露给任意有 MCP 功能的 AI（claude.ai、ChatGPT 等）。
+**把所有本地和远程 MCP 服务器，变成一个可供 ChatGPT、Claude 等 Web AI 使用的安全连接器。**
 
 ![license](https://img.shields.io/badge/license-MIT-e96ba8)
 ![node](https://img.shields.io/badge/node-%E2%89%A524-3c873a)
@@ -17,20 +14,14 @@
 
 </div>
 
+![MCP Switch 通过一个端点把本地与远程 MCP 服务器连接到 Web AI](.github/assets/overview.svg)
+
 ---
 
 ## 为什么
 
 Web/App 端的 AI 只能连**远程** MCP，而且大多只给你**一个**自定义连接器名额；
 可很多有用的 MCP 是**本地** stdio 进程（`npx`/`uvx`），只有 Claude Desktop / CLI 能拉起。
-
-MCP Switch 夹在中间：
-
-```
-   本地 stdio MCP   ─┐
-                    ─┼──►  MCP Switch  ──►  一个 OAuth URL  ──►  claude.ai / ChatGPT / …
-   远程 HTTP MCP    ─┘     (你的 VPS)
-```
 
 - **聚合**任意多个 MCP——远程（URL）或本地（stdio，在你机器上托管）——到一个端点。
 - **连一次。** 你的 AI 只看到一个连接器，背后是你所有的工具。
