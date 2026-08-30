@@ -4,9 +4,7 @@
 
 # MCP Switch
 
-**One MCP endpoint to rule them all.**
-
-Web- or app-based AIs are limited to remote MCP servers and typically offer only a single custom connector slot. In contrast, half of the most useful MCP servers run locally via standard I/O (like npx or uvx), making them accessible only to Claude Desktop or CLI tools.
+**Turn all your local and remote MCP servers into one secure connector for ChatGPT, Claude, and other web AI clients.**
 
 ![license](https://img.shields.io/badge/license-MIT-e96ba8)
 ![node](https://img.shields.io/badge/node-%E2%89%A524-3c873a)
@@ -18,6 +16,8 @@ Web- or app-based AIs are limited to remote MCP servers and typically offer only
 
 </div>
 
+![MCP Switch connects local and remote MCP servers to web AI clients through one endpoint](.github/assets/overview.svg)
+
 ---
 
 ## Why
@@ -25,14 +25,6 @@ Web- or app-based AIs are limited to remote MCP servers and typically offer only
 Web/app AIs can only connect to **remote** MCP servers, and most of them give you
 just **one** custom connector slot. Meanwhile half the useful MCP servers are
 **local** (`npx`/`uvx` stdio processes) that only Claude Desktop / a CLI can reach.
-
-MCP Switch sits in the middle:
-
-```
-   local stdio MCP  ─┐
-                     ┼──►  MCP Switch  ──►  one OAuth URL  ──►  claude.ai / ChatGPT / …
-   yet another MCP  ─┘     (your VPS)
-```
 
 - **Aggregate** any number of MCP servers — remote (URL) or local (stdio, hosted on
   your box) — into one endpoint.
