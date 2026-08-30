@@ -86,6 +86,14 @@ export function createRegistryClient(registry: RemoteMcpRegistry, store: AuthSto
 
     async readRemoteResource(serverId: string, uri: string) {
       return registry.readResource(serverId, uri);
+    },
+
+    async diagnoseRemoteApps(serverId: string) {
+      return registry.diagnoseApps(serverId);
+    },
+
+    async readRemoteAppPreview(serverId: string, uri: string) {
+      return registry.readAppPreview(serverId, uri);
     }
   };
 }

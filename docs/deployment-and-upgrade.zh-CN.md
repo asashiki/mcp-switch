@@ -75,6 +75,7 @@ canary 的 `MCP_PUBLIC_URL` 必须与客户端实际连接的 canonical `/mcp` U
 - 同一 stdio 上游连续调用不会每次重复启动两次进程。
 - 复杂 input/output JSON Schema、图片/音频结果和 tool annotations 没有丢失。
 - ChatGPT/标准 MCP Apps 宿主能加载组件；组件失败时工具仍返回可读的无 UI 结果。
+- 控制台「接入 → App Lab」能识别 UI tools、标准 bridge、MIME/CSP，并在手动点击后显示隔离预览。
 - 只读 agent 看不到写工具，直接调用写工具得到带 `insufficient_scope` 的 403。
 - 错误 Host/Origin 被拒绝；正确反代域名可用。
 - 容器重启后 SQLite、agent、上游配置和 OAuth 状态仍存在。

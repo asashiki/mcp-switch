@@ -5,7 +5,7 @@
 
 import type {
   Skill, Agent, AgentVisibility, AuditEntry,
-  RemoteServer, SkillGroup, StatsRange, HealthOverview,
+  RemoteServer, SkillGroup, StatsRange, HealthOverview, AppDiagnostics, AppPreview,
   LoginRequest, LoginResponse, MeResponse,
 } from "@/types/api";
 import { tStatic } from "@/i18n/locales";
@@ -168,6 +168,13 @@ export const Remote = {
       "DELETE", `/api/console/remote/${encodeURIComponent(id)}`,
     ),
   rediscover: () => request<{ ok: true; seeded: number }>("POST", "/api/console/remote/rediscover"),
+  appDiagnostics: (id: string) =>
+    request<AppDiagnostics>("GET", `/api/console/remote/${encodeURIComponent(id)}/app-diagnostics`),
+  appPreview: (id: string, uri: string) =>
+    request<AppPreview>(
+      "GET",
+      `/api/console/remote/${encodeURIComponent(id)}/app-preview?uri=${encodeURIComponent(uri)}`,
+    ),
 };
 
 // ---- 场景分组（后端 2026-06-10 上线，原 localStorage 兜底已移除） -----------

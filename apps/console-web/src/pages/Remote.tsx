@@ -2,7 +2,9 @@ import { useEffect, useState } from "react";
 import { Remote } from "@/lib/api";
 import { useAsync } from "@/hooks/useAsync";
 import type { RemoteServer } from "@/types/api";
+import type { AppDiagnostics } from "@/types/api";
 import PageHead from "@/components/PageHead";
+import AppLab from "@/components/AppLab";
 import { useT } from "@/i18n";
 
 // 接入表单对齐 claude.ai 连接器：Name + URL 必填；OAuth Client ID/Secret 可选。
@@ -19,6 +21,8 @@ export default function RemotePage() {
   const [jsonText, setJsonText] = useState("");
   const setTransport = (t: "http" | "stdio") => setForm(f => ({ ...f, transport: t }));
   const [showCfg, setShowCfg] = useState<string | null>(null);
+  const [appLab, setAppLab] = useState<{ serverId: string; diagnostics: AppDiagnostics } | null>(null);
+  const [appLabBusy, setAppLabBusy] = useState<string | null>(null);
 
   // 把一个已接入的服务器还原成 mcpServers JSON（密钥值脱敏成 ***）。
   const serverConfigJson = (s: RemoteServer): string => {
@@ -164,6 +168,22 @@ export default function RemotePage() {
     finally { setBusy(false); }
   };
 
+  const toggleAppLab = async (server: RemoteServer) => {
+    if (appLab?.serverId === server.id) {
+      setAppLab(null);
+      return;
+    }
+    setAppLabBusy(server.id); setMsg(null);
+    try {
+      const diagnostics = await Remote.appDiagnostics(server.id);
+      setAppLab({ serverId: server.id, diagnostics });
+    } catch (e: any) {
+      setMsg(t("appLab.loadFailed", { msg: e?.message ?? t("common.unknownError") }));
+    } finally {
+      setAppLabBusy(null);
+    }
+  };
+
   const servers = q.data?.servers ?? [];
 
   return (
@@ -243,8 +263,13 @@ export default function RemotePage() {
             <button className="btn ghost sm" onClick={() => setShowCfg(c => c === s.id ? null : s.id)}>
               {showCfg === s.id ? t("remote.hideConfig") : t("remote.viewConfig")}
             </button>
+            <button className="btn secondary sm" disabled={appLabBusy === s.id || s.status === "offline"}
+              onClick={() => toggleAppLab(s)}>
+              {appLabBusy === s.id ? t("common.loading") : appLab?.serverId === s.id ? t("appLab.close") : t("appLab.open")}
+            </button>
             <button className="btn danger sm" onClick={() => remove(s.id, s.name)}>{t("common.delete")}</button>
           </div>
+          {appLab?.serverId === s.id && <AppLab serverName={s.name} diagnostics={appLab.diagnostics} />}
         </article>
       ))}
 

@@ -26,6 +26,8 @@ import type {
 } from "@mcp-switch/schemas";
 import { z } from "zod";
 import { UpstreamRuntimeManager } from "./upstream-runtime.js";
+import { appHtmlFromContents, diagnoseMcpApps, isLinkedAppResource } from "./app-diagnostics.js";
+import { MCP_APP_MIME_TYPE, normalizeAppMimeType } from "./proxy-metadata.js";
 
 const remoteMcpServerConfigSchema = z.object({
   id: z.string().trim().min(1),
@@ -401,9 +403,53 @@ export function createRemoteMcpRegistry(options: {
     return summary.tools;
   }
 
+  async function readResource(serverId: string, uri: string): Promise<RemoteMcpResourceContents> {
+    const config = resolveServer(serverId);
+    const result = await withRemoteClient(config, async (client) =>
+      client.readResource({ uri })
+    );
+    const contents = Array.isArray(result.contents) ? result.contents : [];
+    return remoteMcpResourceContentsSchema.parse({
+      contents: contents.map((c: Record<string, unknown>) => ({
+        uri: typeof c.uri === "string" ? c.uri : uri,
+        mimeType: typeof c.mimeType === "string" ? c.mimeType : null,
+        text: typeof c.text === "string" ? c.text : null,
+        blob: typeof c.blob === "string" ? c.blob : null,
+        meta: (c._meta && typeof c._meta === "object") ? (c._meta as Record<string, unknown>) : null
+      }))
+    });
+  }
+
+  async function diagnoseApps(serverId: string) {
+    const config = resolveServer(serverId);
+    const summary = await loadServerSummary(config);
+    return diagnoseMcpApps(summary, (uri) => readResource(serverId, uri));
+  }
+
+  async function readAppPreview(serverId: string, uri: string) {
+    const config = resolveServer(serverId);
+    const summary = await loadServerSummary(config);
+    const resource = (summary.resources ?? []).find((item) => item.uri === uri);
+    if (!resource || !summary.tools.some((tool) => isLinkedAppResource(tool, resource))) {
+      throw new Error(`Resource ${uri} is not linked from an MCP Apps tool on server ${serverId}.`);
+    }
+    const content = appHtmlFromContents(await readResource(serverId, uri), uri);
+    const mimeType = normalizeAppMimeType(content.mimeType ?? resource.mimeType, true);
+    if (mimeType !== MCP_APP_MIME_TYPE) {
+      throw new Error(`Resource ${uri} is not an HTML MCP Apps component.`);
+    }
+    return {
+      uri,
+      mimeType,
+      html: content.html
+    };
+  }
+
   return {
     listServers,
     listTools,
+    diagnoseApps,
+    readAppPreview,
 
     /**
      * Begin the OAuth authorize flow (discovery → DCR if no pre-registered
@@ -562,22 +608,7 @@ export function createRemoteMcpRegistry(options: {
     },
 
     /** Read a UI/template resource from a remote server (MCP Apps widget passthrough). */
-    async readResource(serverId: string, uri: string): Promise<RemoteMcpResourceContents> {
-      const config = resolveServer(serverId);
-      const result = await withRemoteClient(config, async (client) =>
-        client.readResource({ uri })
-      );
-      const contents = Array.isArray(result.contents) ? result.contents : [];
-      return remoteMcpResourceContentsSchema.parse({
-        contents: contents.map((c: Record<string, unknown>) => ({
-          uri: typeof c.uri === "string" ? c.uri : uri,
-          mimeType: typeof c.mimeType === "string" ? c.mimeType : null,
-          text: typeof c.text === "string" ? c.text : null,
-          blob: typeof c.blob === "string" ? c.blob : null,
-          meta: (c._meta && typeof c._meta === "object") ? (c._meta as Record<string, unknown>) : null
-        }))
-      });
-    },
+    readResource,
 
     async toConnectors(force = false): Promise<Connector[]> {
       const servers = await listServers(force);

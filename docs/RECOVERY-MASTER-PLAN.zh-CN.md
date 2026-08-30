@@ -42,6 +42,18 @@ MCP Switch 不是单纯的 MCP Server，而是一个统一连接本地 stdio 与
 
 这些只是本轮起点，不代表完整升级已经完成。
 
+## 3.1 本轮已保存的后续实现（Draft PR #4）
+
+- 上游长生命周期连接、单飞初始化、catalog TTL 与 idle shutdown；
+- 原始 input/output JSON Schema、annotations、icons、execution、`_meta` 和非文本结果保真；
+- 合法且稳定的代理工具名、512 项目录上限与分页处理；
+- MCP Apps URI namespace、标准/ChatGPT 元数据桥接和 MIME 归一化；
+- OAuth resource/audience、refresh replay 吊销、Host/Origin 与 rootless/read-only 容器基线；
+- 控制台 App Lab：组件元数据诊断、受限 sandbox、合成 structuredContent 与代理 URI 检查；
+- `music-mcp` 0.2 真实 HTTP 上游交叉验证。
+
+仍未完成的重点是完整 capability 双向代理、OpenTelemetry/更完整的运行指标、部署平台实测，以及相关项目族的剩余独立 PR。
+
 ## 4. 从早期调研恢复的核心缺口
 
 ### P0：网关正确性与可靠性
