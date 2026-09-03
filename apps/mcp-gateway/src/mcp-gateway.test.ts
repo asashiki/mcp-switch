@@ -9,9 +9,20 @@ import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/cli
 import { InMemoryTransport, McpServer, createMcpHandler } from "@modelcontextprotocol/server";
 import { toNodeHandler } from "@modelcontextprotocol/node";
 import { createMcpGatewayServer } from "./mcp.js";
-import { createMcpGatewayApp } from "./app.js";
+import { createMcpGatewayApp, loadMcpGatewayEnv } from "./app.js";
 import type { RegistryClient } from "./registry/client.js";
 import { MCP_APP_MIME_TYPE, proxyToolName } from "./registry/proxy-metadata.js";
+
+test("gateway loads a real process-env shaped OAuth compatibility flag once", () => {
+  const strict = loadMcpGatewayEnv({
+    NODE_ENV: "test",
+    MCP_OAUTH_ALLOW_LEGACY_RESOURCE_OMISSION: "false",
+  });
+  assert.equal(strict.MCP_OAUTH_ALLOW_LEGACY_RESOURCE_OMISSION, false);
+
+  const defaulted = loadMcpGatewayEnv({ NODE_ENV: "test" });
+  assert.equal(defaulted.MCP_OAUTH_ALLOW_LEGACY_RESOURCE_OMISSION, true);
+});
 
 // MCP Switch ships no built-in tools — it re-exposes upstream tools as
 // `rmcp__<server>__<tool>`. This verifies the aggregation path AND the argument

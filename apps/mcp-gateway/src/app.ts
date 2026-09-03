@@ -65,7 +65,9 @@ export function loadMcpGatewayEnv(source: NodeJS.ProcessEnv): McpGatewayEnv {
       MCP_PUBLIC_URL: z.string().url().optional(),
       MCP_AUTH_DB_PATH: z.string().min(1).default("./data/mcp-auth.sqlite"),
       MCP_OAUTH_SCOPE: z.string().min(1).default("tools:read tools:write"),
-      MCP_OAUTH_ALLOW_LEGACY_RESOURCE_OMISSION: z.enum(["true", "false"]).default("true").transform((value) => value === "true"),
+      // Keep this as a string here. mcpGatewayEnvSchema performs the single
+      // string -> boolean transform after the shared service parser returns.
+      MCP_OAUTH_ALLOW_LEGACY_RESOURCE_OMISSION: z.enum(["true", "false"]).default("true"),
       MCP_CONSOLE_CORS_ORIGINS: z.string().default("http://localhost:5173,http://localhost:3000"),
       MCP_ALLOWED_HOSTS: z.string().default(""),
       MCP_ALLOWED_ORIGINS: z.string().default("")
