@@ -48,7 +48,7 @@ async function request<T>(
   method: string,
   path: string,
   body?: unknown,
-  opts: { auth?: boolean } = { auth: true },
+  opts: { auth?: boolean; signal?: AbortSignal } = { auth: true },
 ): Promise<T> {
   const headers: Record<string, string> = {};
   if (body !== undefined) headers["Content-Type"] = "application/json";
@@ -63,8 +63,10 @@ async function request<T>(
       method,
       headers,
       body: body === undefined ? undefined : JSON.stringify(body),
+      signal: opts.signal,
     });
   } catch (e) {
+    if (e instanceof DOMException && e.name === "AbortError") throw e;
     throw new ApiError(0, tStatic("api.networkError"), e);
   }
 
@@ -100,7 +102,7 @@ export const Auth = {
 // ---- 技能 ------------------------------------------------------------------
 
 export const Skills = {
-  list: () => request<{ skills: Skill[] }>("GET", "/api/console/skills"),
+  list: (signal?: AbortSignal) => request<{ skills: Skill[] }>("GET", "/api/console/skills", undefined, { signal }),
   setEnabled: (id: string, enabled: boolean) =>
     request<{ skillId: string; enabled: boolean }>(
       "POST", `/api/console/skills/${encodeURIComponent(id)}/enabled`, { enabled },
@@ -116,7 +118,7 @@ export const Skills = {
 // ---- Agents ----------------------------------------------------------------
 
 export const Agents = {
-  list: () => request<{ agents: Agent[] }>("GET", "/api/console/agents"),
+  list: (signal?: AbortSignal) => request<{ agents: Agent[] }>("GET", "/api/console/agents", undefined, { signal }),
   create: (agentId: string, displayName?: string) =>
     request<{ agentId: string; secret: string | null }>(
       "POST", "/api/console/agents", { agentId, displayName },
@@ -149,11 +151,11 @@ export const Audit = {
 // ---- 远程 MCP --------------------------------------------------------------
 
 export const Remote = {
-  list: () => request<{ servers: RemoteServer[] }>("GET", "/api/console/remote"),
+  list: (signal?: AbortSignal) => request<{ servers: RemoteServer[] }>("GET", "/api/console/remote", undefined, { signal }),
   // 对齐 claude.ai 表单：name+url 必填；clientId/clientSecret = OAuth 预注册客户端；
   // bearerToken = 静态 token 服务器。id 留空由后端从 name 生成。
   add: (s: {
-    name: string; url?: string;
+    name: string; url?: string; description?: string;
     transport?: "http" | "stdio"; command?: string; args?: string[]; env?: Record<string, string>;
     clientId?: string; clientSecret?: string; bearerToken?: string; headers?: Record<string, string>;
   }) =>
@@ -168,8 +170,8 @@ export const Remote = {
       "DELETE", `/api/console/remote/${encodeURIComponent(id)}`,
     ),
   rediscover: () => request<{ ok: true; seeded: number }>("POST", "/api/console/remote/rediscover"),
-  appDiagnostics: (id: string) =>
-    request<AppDiagnostics>("GET", `/api/console/remote/${encodeURIComponent(id)}/app-diagnostics`),
+  appDiagnostics: (id: string, signal?: AbortSignal) =>
+    request<AppDiagnostics>("GET", `/api/console/remote/${encodeURIComponent(id)}/app-diagnostics`, undefined, { signal }),
   appPreview: (id: string, uri: string) =>
     request<AppPreview>(
       "GET",
@@ -195,5 +197,5 @@ export const Stats = {
 // ---- 系统健康 ----------------------------------------------------------------
 
 export const Health = {
-  overview: () => request<HealthOverview>("GET", "/api/console/health"),
+  overview: (signal?: AbortSignal) => request<HealthOverview>("GET", "/api/console/health", undefined, { signal }),
 };

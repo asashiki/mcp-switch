@@ -17,7 +17,8 @@
     "typecheck": "pnpm -r typecheck",
     "smoke": "pnpm --filter @mcp-switch/mcp-gateway smoke",
     "check:remote": "pnpm --filter @mcp-switch/mcp-gateway check:remote",
-    "test": "pnpm --filter @mcp-switch/mcp-gateway test"
+    "test": "pnpm test:webmcp && pnpm --filter @mcp-switch/mcp-gateway test",
+    "test:webmcp": "node --import tsx --test apps/console-web/src/webmcp/control-plane.test.ts"
   },
   "devDependencies": {
     "@types/node": "^24.6.0",

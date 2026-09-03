@@ -39,6 +39,9 @@ MCP Switch sits in the middle:
 - **Connect once.** Your AI sees a single connector; behind it are all your tools.
 - **Manage from a console** — add servers, group tools, scope which agent sees what,
   watch an audit log.
+- **Work with the console through WebMCP** — supported browser agents can inspect
+  the gateway, open App Lab diagnostics, and prepare review-only connection drafts
+  in the same signed-in page.
 - **Pure relay.** MCP Switch ships no tools of its own; it forwards tools, schemas,
   results and even MCP-Apps UI widgets transparently.
 
@@ -152,12 +155,14 @@ All via `.env` (see [`.env.example`](.env.example)):
 - 🛟 [安全升级与回滚](docs/deployment-and-upgrade.zh-CN.md) — test locally, run a parallel VPS canary, then migrate without touching the live instance.
 - 🌐 [2026 部署与远程测试选择](docs/deployment-options-2026.zh-CN.md) — local, Cloudflare Tunnel/Containers/Workers, Cloud Run and free VM trade-offs.
 - 🧩 [MCP Apps App Lab](docs/mcp-apps-app-lab.zh-CN.md) — diagnose cross-host component metadata, MIME, CSP and bridge behavior.
+- 🤝 [WebMCP Control Plane](docs/webmcp-control-plane.zh-CN.md) — five safe Site tools for shared inspection, App Lab navigation and review-only connection drafts.
+- 🎬 [WebMCP demo brief](docs/challenge/WEBMCP-DEMO.md) — new-work summary, sub-three-minute demo flow and screenshot checklist.
 
 ## Development
 
 ```bash
 pnpm typecheck      # all packages
-pnpm test           # gateway test suite (incl. an upstream→gateway e2e)
+pnpm test           # WebMCP contracts + gateway tests (incl. upstream→gateway e2e)
 pnpm build          # build everything
 ```
 

@@ -9,6 +9,7 @@ import SkillsPage from "@/pages/Skills";
 import AgentsPage from "@/pages/Agents";
 import RemotePage from "@/pages/Remote";
 import AuditPage from "@/pages/Audit";
+import WebMcpBridge from "@/components/WebMcpBridge";
 
 type AuthState = "unknown" | "in" | "out";
 
@@ -40,6 +41,7 @@ export default function App() {
 
   return (
     <Shell onLogout={() => { TokenStore.clear(); setAuth("out"); nav("/login"); }}>
+      <WebMcpBridge />
       <Routes>
         <Route path="/" element={<Overview />} />
         <Route path="/skills" element={<SkillsPage />} />

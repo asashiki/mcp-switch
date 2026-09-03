@@ -124,6 +124,40 @@ code, .mono { font-family: var(--mono); }
   padding: 32px 28px 96px;
 }
 
+/* WebMCP appears only in compatible browsers. It is intentionally a quiet
+   context indicator rather than another permanent navigation surface. */
+.webmcp-bar {
+  max-width: 1224px;
+  margin: 14px auto -12px;
+  padding: 9px 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--border));
+  border-radius: var(--radius-m);
+  background: color-mix(in srgb, var(--accent-soft) 62%, var(--surface));
+  color: var(--text-2);
+}
+.webmcp-bar.warn { border-color: var(--warn); background: var(--warn-soft); }
+.webmcp-bar > div { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.webmcp-bar strong { color: var(--text); font-size: 12.5px; white-space: nowrap; }
+.webmcp-bar span { color: var(--text-3); font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.webmcp-mark {
+  flex: none;
+  width: 25px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  background: var(--accent);
+  color: var(--on-accent) !important;
+  font-family: var(--mono);
+  font-size: 9px !important;
+  font-weight: 800;
+  letter-spacing: .04em;
+}
+
 /* page header */
 .ph {
   display: flex; gap: 24px;
@@ -781,6 +815,10 @@ code, .mono { font-family: var(--mono); }
   gap: 16px;
   box-shadow: var(--shadow);
 }
+.rcard.webmcp-focus {
+  border-color: color-mix(in srgb, var(--accent) 68%, var(--border));
+  box-shadow: 0 0 0 3px var(--accent-soft), var(--shadow);
+}
 .rcard .rh { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
 .rcard .rh .nm { font: var(--t-title); font-size: 17px; }
 .rcard .rh .id { font-family: var(--mono); font-size: 11px; color: var(--text-3); }
@@ -887,6 +925,29 @@ code, .mono { font-family: var(--mono); }
   border-radius: var(--radius-l);
   padding: 20px 22px;
   background: var(--surface-raised);
+}
+.add-remote.webmcp-draft {
+  border-style: solid;
+  border-color: color-mix(in srgb, var(--accent) 60%, var(--border));
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.webmcp-draft-note {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: start;
+  gap: 10px;
+  margin-bottom: 16px;
+  padding: 12px;
+  border-radius: var(--radius-m);
+  background: var(--accent-soft);
+}
+.webmcp-draft-note strong { display: block; color: var(--text); font-size: 13px; margin-bottom: 2px; }
+.webmcp-draft-note p { color: var(--text-2); font-size: 12px; line-height: 1.5; }
+.webmcp-draft-note .webmcp-draft-description {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--text-3);
 }
 .add-remote h3 { font: var(--t-title); font-size: 16px; margin-bottom: 14px; }
 /* 分步骤标记 + 导入面板 */

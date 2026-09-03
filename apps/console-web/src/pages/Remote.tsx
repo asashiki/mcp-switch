@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { Remote } from "@/lib/api";
 import { useAsync } from "@/hooks/useAsync";
 import type { RemoteServer } from "@/types/api";
@@ -6,23 +7,32 @@ import type { AppDiagnostics } from "@/types/api";
 import PageHead from "@/components/PageHead";
 import AppLab from "@/components/AppLab";
 import { useT } from "@/i18n";
+import {
+  WEBMCP_DRAFT_EVENT,
+  WEBMCP_DRAFT_KEY,
+  WEBMCP_DIAGNOSTICS_EVENT,
+  WEBMCP_DIAGNOSTICS_KEY,
+  type RemoteServerDraft,
+} from "@/webmcp/control-plane";
 
 // 接入表单对齐 claude.ai 连接器：Name + URL 必填；OAuth Client ID/Secret 可选。
 // 三种鉴权自动适配：①开放服务器直连 ②OAuth 动态注册（DCR）→ 跳转授权
 // ③OAuth 预注册客户端（填 ID/Secret）→ 跳转授权。另保留静态 Bearer Token（高级）。
 export default function RemotePage() {
   const t = useT();
+  const location = useLocation();
   const q = useAsync(() => Remote.list(), []);
   const [form, setForm] = useState({
     name: "", transport: "http" as "http" | "stdio", url: "",
     command: "", argsText: "", envText: "",
-    clientId: "", clientSecret: "", bearerToken: "", headers: "",
+    clientId: "", clientSecret: "", bearerToken: "", headers: "", description: "",
   });
   const [jsonText, setJsonText] = useState("");
   const setTransport = (t: "http" | "stdio") => setForm(f => ({ ...f, transport: t }));
   const [showCfg, setShowCfg] = useState<string | null>(null);
   const [appLab, setAppLab] = useState<{ serverId: string; diagnostics: AppDiagnostics } | null>(null);
   const [appLabBusy, setAppLabBusy] = useState<string | null>(null);
+  const [webMcpDraft, setWebMcpDraft] = useState<RemoteServerDraft | null>(null);
 
   // 把一个已接入的服务器还原成 mcpServers JSON（密钥值脱敏成 ***）。
   const serverConfigJson = (s: RemoteServer): string => {
@@ -51,6 +61,47 @@ export default function RemotePage() {
     q.reload();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // WebMCP is deliberately allowed to stage only non-secret HTTP fields. The
+  // user sees this highlighted draft and must still press Add manually.
+  useEffect(() => {
+    const applyDraft = (value: unknown) => {
+      if (!value || typeof value !== "object") return;
+      const draft = value as Partial<RemoteServerDraft>;
+      if (draft.source !== "webmcp" || typeof draft.name !== "string" || typeof draft.url !== "string") return;
+      const safeDraft: RemoteServerDraft = {
+        source: "webmcp",
+        name: draft.name,
+        url: draft.url,
+        ...(typeof draft.description === "string" ? { description: draft.description } : {}),
+        createdAt: typeof draft.createdAt === "string" ? draft.createdAt : new Date().toISOString(),
+      };
+      setWebMcpDraft(safeDraft);
+      setForm({
+        name: safeDraft.name,
+        transport: "http",
+        url: safeDraft.url,
+        description: safeDraft.description ?? "",
+        command: "",
+        argsText: "",
+        envText: "",
+        clientId: "",
+        clientSecret: "",
+        bearerToken: "",
+        headers: "",
+      });
+      setMsg(t("webmcp.draftApplied"));
+      requestAnimationFrame(() => document.getElementById("remote-add-form")?.scrollIntoView({ behavior: "smooth", block: "start" }));
+    };
+
+    const stored = sessionStorage.getItem(WEBMCP_DRAFT_KEY);
+    if (stored) {
+      try { applyDraft(JSON.parse(stored)); } catch { sessionStorage.removeItem(WEBMCP_DRAFT_KEY); }
+    }
+    const onDraft = (event: Event) => applyDraft((event as CustomEvent<unknown>).detail);
+    window.addEventListener(WEBMCP_DRAFT_EVENT, onDraft);
+    return () => window.removeEventListener(WEBMCP_DRAFT_EVENT, onDraft);
+  }, [t]);
 
   const authorize = async (id: string) => {
     setBusy(true); setMsg(null);
@@ -120,8 +171,13 @@ export default function RemotePage() {
 
   const resetForm = () => setForm({
     name: "", transport: "http", url: "", command: "", argsText: "", envText: "",
-    clientId: "", clientSecret: "", bearerToken: "", headers: "",
+    clientId: "", clientSecret: "", bearerToken: "", headers: "", description: "",
   });
+
+  const clearWebMcpDraft = () => {
+    sessionStorage.removeItem(WEBMCP_DRAFT_KEY);
+    setWebMcpDraft(null);
+  };
 
   const submit = async () => {
     setBusy(true); setMsg(null);
@@ -129,6 +185,7 @@ export default function RemotePage() {
       const stdio = form.transport === "stdio";
       const r = await Remote.add({
         name: form.name.trim(),
+        description: form.description.trim() || undefined,
         transport: form.transport,
         url: stdio ? undefined : form.url.trim(),
         command: stdio ? form.command.trim() : undefined,
@@ -139,7 +196,7 @@ export default function RemotePage() {
         bearerToken: stdio ? undefined : (form.bearerToken.trim() || undefined),
         headers: stdio ? undefined : parseKeyVals(form.headers),
       });
-      resetForm(); setJsonText("");
+      resetForm(); setJsonText(""); clearWebMcpDraft();
       if (r.needsAuth) {
         setMsg(t("remote.msgAddedNeedsAuth"));
         await authorize(r.id);
@@ -186,6 +243,53 @@ export default function RemotePage() {
 
   const servers = q.data?.servers ?? [];
 
+  useEffect(() => {
+    const applyDiagnostics = (value: unknown) => {
+      if (!value || typeof value !== "object") return false;
+      const diagnostics = value as Partial<AppDiagnostics>;
+      if (typeof diagnostics.serverId !== "string" || !Array.isArray(diagnostics.components) || !Array.isArray(diagnostics.checks)) return false;
+      setAppLab({ serverId: diagnostics.serverId, diagnostics: diagnostics as AppDiagnostics });
+      return true;
+    };
+    const onDiagnostics = (event: Event) => {
+      if (applyDiagnostics((event as CustomEvent<unknown>).detail)) {
+        sessionStorage.removeItem(WEBMCP_DIAGNOSTICS_KEY);
+      }
+    };
+    window.addEventListener(WEBMCP_DIAGNOSTICS_EVENT, onDiagnostics);
+    return () => window.removeEventListener(WEBMCP_DIAGNOSTICS_EVENT, onDiagnostics);
+  }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const serverId = params.get("focus");
+    if (!serverId || !q.data) return;
+    const server = q.data.servers.find((item) => item.id === serverId);
+    if (!server) {
+      setMsg(t("webmcp.focusMissing", { id: serverId }));
+      return;
+    }
+    requestAnimationFrame(() => document.getElementById(`remote-server-${server.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" }));
+    if (params.get("appLab") === "1" && appLab?.serverId !== server.id && appLabBusy !== server.id) {
+      const cached = sessionStorage.getItem(WEBMCP_DIAGNOSTICS_KEY);
+      if (cached) {
+        try {
+          const diagnostics = JSON.parse(cached) as AppDiagnostics;
+          if (diagnostics.serverId === server.id) {
+            setAppLab({ serverId: server.id, diagnostics });
+            sessionStorage.removeItem(WEBMCP_DIAGNOSTICS_KEY);
+            return;
+          }
+        } catch { /* fall through to a fresh read-only diagnostic */ }
+        sessionStorage.removeItem(WEBMCP_DIAGNOSTICS_KEY);
+      }
+      void toggleAppLab(server);
+    }
+    // q.data is intentionally sufficient here: location.search changes cause a
+    // fresh run, while App Lab state updates must not re-run the same request.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.search, q.data]);
+
   return (
     <div className="frame">
       <PageHead
@@ -229,7 +333,8 @@ export default function RemotePage() {
       )}
 
       {servers.map(s => (
-        <article key={s.id} className="rcard">
+        <article key={s.id} id={`remote-server-${s.id}`}
+          className={`rcard ${new URLSearchParams(location.search).get("focus") === s.id ? "webmcp-focus" : ""}`}>
           <div>
             <div className="rh">
               <span className="nm">{s.name}</span>
@@ -274,8 +379,22 @@ export default function RemotePage() {
       ))}
 
       {/* 添加表单 —— 支持远程 URL（claude.ai 连接器）+ 本机 stdio 托管 */}
-      <section className="add-remote">
+      <section className={`add-remote ${webMcpDraft ? "webmcp-draft" : ""}`} id="remote-add-form">
         <h3>{t("remote.addTitle")}</h3>
+
+        {webMcpDraft && (
+          <div className="webmcp-draft-note">
+            <span className="webmcp-mark" aria-hidden="true">AI</span>
+            <div>
+              <strong>{t("webmcp.draftTitle")}</strong>
+              <p>{t("webmcp.draftNote")}</p>
+              {webMcpDraft.description && <p className="webmcp-draft-description">{webMcpDraft.description}</p>}
+            </div>
+            <button className="btn ghost sm" type="button" onClick={() => { clearWebMcpDraft(); resetForm(); }}>
+              {t("webmcp.discardDraft")}
+            </button>
+          </div>
+        )}
 
         {/* ① 粘贴 JSON 自动填表（推荐入口，视觉上突出） */}
         <div className="import-panel">
@@ -316,6 +435,11 @@ export default function RemotePage() {
           <div className="field">
             <label>{t("remote.nameLabel")}</label>
             <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder={t("remote.namePlaceholder")} />
+          </div>
+
+          <div className="field">
+            <label>{t("remote.descriptionLabel")}</label>
+            <input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder={t("remote.descriptionPlaceholder")} />
           </div>
 
           {form.transport === "http" ? <>
