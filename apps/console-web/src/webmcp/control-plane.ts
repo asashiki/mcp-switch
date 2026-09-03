@@ -126,8 +126,9 @@ function optionalString(
   return trimmed || undefined;
 }
 
-function isOnline(server: RemoteServer): boolean {
-  return server.status === "online" || server.status === "ok";
+function isHealthy(server: RemoteServer): boolean {
+  const transportOnline = server.status === "online" || server.status === "ok";
+  return transportOnline && !server.needsAuth && !server.lastError;
 }
 
 function publicServerSummary(server: RemoteServer, includeTools = false) {
@@ -218,13 +219,13 @@ export function createSwitchWebMcpTools(deps: SwitchWebMcpDependencies): WebMcpT
           deps.getHealth(options?.signal),
         ]);
         const enabledSkills = skills.skills.filter((skill) => skill.enabled);
-        const onlineServers = remote.servers.filter(isOnline);
+        const healthyServers = remote.servers.filter(isHealthy);
         return {
           gateway: health.gateway,
           upstreams: {
             total: remote.servers.length,
-            online: onlineServers.length,
-            attention: remote.servers.length - onlineServers.length,
+            online: healthyServers.length,
+            attention: remote.servers.length - healthyServers.length,
             awaitingAuthorization: remote.servers.filter((server) => server.needsAuth).length,
           },
           tools: {
@@ -266,7 +267,7 @@ export function createSwitchWebMcpTools(deps: SwitchWebMcpDependencies): WebMcpT
         }
         const { servers } = await deps.listServers(options?.signal);
         const filtered = servers.filter((server) =>
-          status === "all" || (status === "online" ? isOnline(server) : !isOnline(server)),
+          status === "all" || (status === "online" ? isHealthy(server) : !isHealthy(server)),
         );
         return {
           filter: status,

@@ -126,6 +126,16 @@ test("list output excludes endpoints, errors, descriptions, and secret-shaped fi
   assert.equal(result.servers[0].id, "music");
 });
 
+test("attention filter includes an online transport that still needs authorization", async () => {
+  const base = fixture();
+  const remote = await base.listServers();
+  remote.servers[0]!.needsAuth = true;
+  const deps = fixture({ listServers: async () => remote });
+  const result = await tool(deps, "list_upstream_mcp_servers").execute({ status: "attention" }) as any;
+  assert.equal(result.total, 1);
+  assert.equal(result.servers[0].needsAuth, true);
+});
+
 test("inspect resolves a display name and returns a capped, sanitized tool catalog", async () => {
   const result = await tool(fixture(), "inspect_upstream_mcp_server").execute({ server: "music mcp" }) as any;
   assert.equal(result.id, "music");

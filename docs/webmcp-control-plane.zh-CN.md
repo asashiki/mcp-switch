@@ -93,6 +93,9 @@ pnpm --filter @mcp-switch/console-web build
 测试覆盖工具清单、注册/注销生命周期、汇总计算、脱敏、名称解析、App Lab 页面联动、草稿边界
 以及恶意 URL 拒绝。
 
+同一套 typecheck、测试和生产构建已经接入 GitHub Actions；PR 上的结果会成为用户审核时的
+独立证据，而不只依赖开发环境里的口头结论。
+
 ## 当前有意保留的限制
 
 - 不直接增加、删除、授权或重新发现服务器；这些动作仍由人执行。
@@ -107,4 +110,3 @@ commit 的双阶段模型。
 
 - [OpenAI Site tools / WebMCP 文档](https://learn.chatgpt.com/docs/webmcp)
 - [WebMCP Community Group Draft](https://webmachinelearning.github.io/webmcp/)
-
