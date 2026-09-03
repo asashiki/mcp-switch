@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675" viewBox="0 0 1200 675" role="img" aria-labelledby="title desc">
+  <title id="title">MCP Switch architecture</title>
+  <desc id="desc">ChatGPT, Claude and Codex connect through one MCP Switch gateway to local stdio and remote HTTP MCP servers. The gateway provides protocol negotiation, OAuth, policy, audit and MCP Apps diagnostics, while WebMCP controls the visible console.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fff8fc"/>
+      <stop offset="1" stop-color="#f3f1ff"/>
+    </linearGradient>
+    <linearGradient id="switch" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#e96ba8"/>
+      <stop offset="1" stop-color="#8b8bef"/>
+    </linearGradient>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 10 5 0 10Z" fill="#b59aac"/>
+    </marker>
+  </defs>
+  <rect width="1200" height="675" rx="34" fill="url(#bg)"/>
+  <path d="M930 0H1200V170L1050 108Z" fill="#fdd9ec" opacity=".68"/>
+  <path d="M0 520 215 675H0Z" fill="#e1e1fe" opacity=".72"/>
+
+  <text x="64" y="74" fill="#3a3340" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="30" font-weight="750">One endpoint, two planes</text>
+  <text x="64" y="107" fill="#8a7d8f" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="16">MCP stays online as the data plane. WebMCP shares the visible control plane.</text>
+
+  <g font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">
+    <text x="88" y="173" fill="#b8aabb" font-size="13" font-weight="700" letter-spacing="2">AI CLIENTS</text>
+    <g>
+      <rect x="70" y="195" width="236" height="68" rx="14" fill="#fff" stroke="#f3dce9"/>
+      <rect x="70" y="279" width="236" height="68" rx="14" fill="#fff" stroke="#f3dce9"/>
+      <rect x="70" y="363" width="236" height="68" rx="14" fill="#fff" stroke="#f3dce9"/>
+    </g>
+    <circle cx="104" cy="229" r="13" fill="#fdd9ec"/><text x="129" y="236" fill="#3a3340" font-size="19" font-weight="700">ChatGPT</text>
+    <circle cx="104" cy="313" r="13" fill="#e1e1fe"/><text x="129" y="320" fill="#3a3340" font-size="19" font-weight="700">Claude</text>
+    <circle cx="104" cy="397" r="13" fill="#d8f0e6"/><text x="129" y="404" fill="#3a3340" font-size="19" font-weight="700">Codex / IDE</text>
+
+    <path d="M320 229H416M320 313H416M320 397H416" fill="none" stroke="#b59aac" stroke-width="3" marker-end="url(#arrow)"/>
+
+    <g>
+      <rect x="435" y="177" width="330" height="286" rx="24" fill="#fff" stroke="#e9c4d9" stroke-width="2"/>
+      <rect x="435" y="177" width="330" height="88" rx="24" fill="url(#switch)"/>
+      <path d="M435 241H765V265H435Z" fill="url(#switch)"/>
+    </g>
+    <rect x="470" y="207" width="33" height="33" rx="9" fill="#fff" opacity=".92" transform="skewX(-10)"/>
+    <text x="523" y="233" fill="#fff" font-size="25" font-weight="800">MCP Switch</text>
+    <text x="470" y="295" fill="#8a7d8f" font-size="13" font-weight="700" letter-spacing="1.5">GATEWAY · DATA PLANE</text>
+    <g fill="#3a3340" font-size="15" font-weight="650">
+      <text x="470" y="333">Protocol negotiation</text><text x="638" y="333">Runtime reuse</text>
+      <text x="470" y="370">OAuth / Agent policy</text><text x="638" y="370">Audit</text>
+      <text x="470" y="407">Schema fidelity</text><text x="638" y="407">Apps isolation</text>
+    </g>
+    <rect x="469" y="425" width="262" height="22" rx="7" fill="#fff2f9"/>
+    <text x="600" y="440" text-anchor="middle" fill="#e96ba8" font-size="11" font-weight="750">ONE /mcp ENDPOINT</text>
+
+    <path d="M783 253H878M783 386H878" fill="none" stroke="#b59aac" stroke-width="3" marker-end="url(#arrow)"/>
+    <text x="906" y="173" fill="#b8aabb" font-size="13" font-weight="700" letter-spacing="2">UPSTREAMS</text>
+    <g>
+      <rect x="895" y="195" width="235" height="112" rx="16" fill="#fff" stroke="#f3dce9"/>
+      <rect x="895" y="329" width="235" height="112" rx="16" fill="#fff" stroke="#f3dce9"/>
+    </g>
+    <rect x="919" y="219" width="38" height="38" rx="11" fill="#e1e1fe"/><text x="938" y="245" text-anchor="middle" fill="#8b8bef" font-size="20">⌁</text>
+    <text x="972" y="239" fill="#3a3340" font-size="18" font-weight="700">Remote HTTP</text>
+    <text x="919" y="280" fill="#8a7d8f" font-size="14">Music · Sticker · APIs</text>
+    <rect x="919" y="353" width="38" height="38" rx="11" fill="#d8f0e6"/><text x="938" y="379" text-anchor="middle" fill="#4fb38a" font-size="20">›_</text>
+    <text x="972" y="373" fill="#3a3340" font-size="18" font-weight="700">Local stdio</text>
+    <text x="919" y="414" fill="#8a7d8f" font-size="14">Files · Devices · Private data</text>
+
+    <rect x="310" y="520" width="580" height="91" rx="18" fill="#fff" stroke="#e9c4d9" stroke-width="2"/>
+    <rect x="334" y="545" width="42" height="28" rx="8" fill="#e96ba8"/><text x="355" y="564" text-anchor="middle" fill="#fff" font-size="11" font-weight="800">AI</text>
+    <text x="395" y="559" fill="#3a3340" font-size="18" font-weight="750">WebMCP · visible control plane</text>
+    <text x="395" y="584" fill="#8a7d8f" font-size="14">Read status · open App Lab · stage drafts · human confirms changes</text>
+    <path d="M600 505V466" fill="none" stroke="#e96ba8" stroke-width="3" stroke-dasharray="7 7" marker-end="url(#arrow)"/>
+  </g>
+</svg>
