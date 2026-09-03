@@ -14,7 +14,9 @@ Web- or app-based AIs are limited to remote MCP servers and typically offer only
 
 **English** · [简体中文](README.zh-CN.md) · [日本語](README.ja.md)
 
-🔗 **[Live console demo](https://show.asashiki.com/console/)** · 📖 **[User manual](docs/manual.md)**
+🏁 **WebMCP Challenge 2026:** [open the public interactive demo](https://mcp-switch-webmcp-review.asashiki-5352.chatgpt.site) · [see the exact demo source](apps/webmcp-challenge-demo) · [read the submission brief](docs/challenge/DEVPOST-SUBMISSION.md)
+
+🔗 **[Original console demo](https://show.asashiki.com/console/)** · 📖 **[User manual](docs/manual.md)**
 
 </div>
 
@@ -157,6 +159,8 @@ All via `.env` (see [`.env.example`](.env.example)):
 - 🧩 [MCP Apps App Lab](docs/mcp-apps-app-lab.zh-CN.md) — diagnose cross-host component metadata, MIME, CSP and bridge behavior.
 - 🤝 [WebMCP Control Plane](docs/webmcp-control-plane.zh-CN.md) — five safe Site tools for shared inspection, App Lab navigation and review-only connection drafts.
 - 🎬 [WebMCP demo brief](docs/challenge/WEBMCP-DEMO.md) — new-work summary, sub-three-minute demo flow and screenshot checklist.
+- 🏁 [WebMCP Challenge submission](docs/challenge/DEVPOST-SUBMISSION.md) — English project copy, judging instructions, source links and challenge-work evidence.
+- 🎙️ [One-take recording script](docs/challenge/RECORDING-SCRIPT.md) — exact prompts, narration and timing for the required public video.
 
 ## Development
 

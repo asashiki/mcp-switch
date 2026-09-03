@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="light dark" />
+  <meta name="description" content="A public WebMCP challenge sandbox for managing and debugging MCP servers with a human in control." />
+  <title>MCP Switch · WebMCP Control Plane</title>
+  <link rel="stylesheet" href="./app.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="#overview" aria-label="MCP Switch overview">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span>MCP Switch <small>WEBMCP</small></span>
+      </a>
+      <nav class="nav-tabs" aria-label="Main navigation">
+        <button class="nav-link active" data-view="overview">Overview</button>
+        <button class="nav-link" data-view="remote">Diagnose</button>
+        <button class="nav-link" data-view="design">Safety model</button>
+      </nav>
+      <div class="spacer"></div>
+      <span class="health-pill"><span class="dot"></span>5 SITE TOOLS</span>
+      <a class="icon-btn github-link" href="https://github.com/asashiki/mcp-switch/tree/agent/webmcp-control-plane" target="_blank" rel="noreferrer" aria-label="Open source on GitHub" title="Source on GitHub">↗</a>
+      <button class="icon-btn" id="theme-toggle" aria-label="Toggle color theme" title="Toggle color theme">◐</button>
+    </div>
+  </header>
+
+  <div class="review-notice">
+    <strong>PUBLIC CHALLENGE SANDBOX</strong>
+    <span>Safe demo data only. No credentials, live gateway, or private infrastructure are connected.</span>
+  </div>
+
+  <aside class="webmcp-bar" id="webmcp-bar" aria-live="polite">
+    <span class="webmcp-mark" aria-hidden="true">AI</span>
+    <div>
+      <strong>WebMCP site tools</strong>
+      <span id="webmcp-state">Checking this browser…</span>
+    </div>
+    <button class="bar-action" id="tool-list-button">View all 5 tools</button>
+  </aside>
+
+  <main>
+    <section class="view active" id="view-overview">
+      <div class="frame">
+        <div class="page-head">
+          <div>
+            <div class="eyebrow">HUMAN + AGENT CONTROL PLANE</div>
+            <h1>The agent can help manage<br />the tools it depends on.</h1>
+            <p>MCP Switch already gives AI clients one endpoint for many MCP servers. WebMCP now lets a person and an agent inspect that gateway, debug broken MCP Apps, and prepare changes together in the same visible console.</p>
+          </div>
+          <div class="page-meta">WEBMCP CHALLENGE 2026<br />OPEN-SOURCE DEMO</div>
+        </div>
+
+        <div class="kpi-grid">
+          <article class="kpi"><span class="lab">UPSTREAMS</span><strong>3</strong><small>HTTP + stdio behind one gateway</small></article>
+          <article class="kpi"><span class="lab">DISCOVERED TOOLS</span><strong>37</strong><small>Sanitized catalog in this sandbox</small></article>
+          <article class="kpi"><span class="lab">PROTOCOL</span><strong>2<span> generations</span></strong><small>2026 + legacy negotiation</small></article>
+          <article class="kpi deco"><span class="lab">WEBMCP TOOLS</span><strong>5</strong><small>Read, navigate, and draft</small></article>
+        </div>
+
+        <div class="overview-grid challenge-grid">
+          <article class="card prompt-card">
+            <div class="card-head"><h2>Try the whole demo in three prompts</h2><span>CHATGPT BUILT-IN BROWSER</span></div>
+            <div class="prompt-list">
+              <button class="prompt-row" data-prompt="Give me a concise overview of this MCP Switch and list only upstreams that need attention.">
+                <span class="prompt-no">01</span><span><strong>Understand the gateway</strong><small>Read a sanitized overview and find the one upstream that needs attention.</small></span><em>Copy prompt</em>
+              </button>
+              <button class="prompt-row" data-prompt="Inspect Music MCP's app compatibility and open the relevant diagnostics on the page.">
+                <span class="prompt-no">02</span><span><strong>Debug together</strong><small>The agent opens App Lab in the page without invoking the music tool.</small></span><em>Copy prompt</em>
+              </button>
+              <button class="prompt-row" data-prompt="Prepare https://example.com/mcp as Example MCP for me to review. Do not save or connect it.">
+                <span class="prompt-no">03</span><span><strong>Stage, then review</strong><small>The agent fills a draft. A person still owns the final action.</small></span><em>Copy prompt</em>
+              </button>
+            </div>
+          </article>
+
+          <article class="card">
+            <div class="card-head"><h2>Upstream status</h2><span>SAFE DEMO STATE</span></div>
+            <div class="server-list compact">
+              <button class="server-row" data-open-server="music-mcp"><span class="server-icon violet">♫</span><span><strong>Music MCP</strong><small>12 tools · MCP Apps</small></span><em class="tag warn">UI check</em></button>
+              <button class="server-row" data-open-server="sticker-mcp"><span class="server-icon pink">✦</span><span><strong>Sticker MCP</strong><small>18 tools · MCP Apps</small></span><em class="tag ok">Online</em></button>
+              <button class="server-row" data-open-server="timeline-mcp"><span class="server-icon green">◎</span><span><strong>Timeline MCP</strong><small>7 tools · HTTP</small></span><em class="tag ok">Online</em></button>
+            </div>
+            <div class="activity-strip">
+              <span>LAST SHARED ACTION</span>
+              <strong id="last-action">Waiting for a person or agent</strong>
+            </div>
+          </article>
+        </div>
+
+        <article class="card evolution-card">
+          <div class="card-head"><h2>One product, three planes</h2><span>THE DESIGN IN 20 SECONDS</span></div>
+          <div class="evolution-grid">
+            <div><span class="step-no">01</span><strong>MCP data plane</strong><p>AI clients call aggregated tools even when the console is closed.</p></div>
+            <div><span class="step-no">02</span><strong>WebMCP control plane</strong><p>When the console is open, the agent understands and changes the same visible page.</p></div>
+            <div><span class="step-no">03</span><strong>Human review gate</strong><p>Secrets and irreversible admin actions never enter a site-tool schema.</p></div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="view" id="view-remote">
+      <div class="frame">
+        <div class="page-head">
+          <div>
+            <div class="eyebrow">UPSTREAMS · APP LAB</div>
+            <h1>Debug a broken MCP App together</h1>
+            <p>This reproduces a real failure mode: the component resource exists, but an incomplete host bridge keeps the music player from rendering correctly inside ChatGPT.</p>
+          </div>
+          <button class="btn primary" data-prompt="Inspect Music MCP's app compatibility and open the relevant diagnostics on the page.">Copy diagnostic prompt</button>
+        </div>
+
+        <div class="remote-layout">
+          <div class="remote-stack">
+            <article class="remote-card focused" id="music-card">
+              <div class="remote-main">
+                <span class="server-icon violet large">♫</span>
+                <div class="remote-copy"><h2>Music MCP</h2><p>Remote HTTP · 12 tools · OAuth authorized</p></div>
+                <span class="tag warn">1 UI compatibility issue</span>
+              </div>
+              <div class="remote-actions">
+                <button class="btn secondary" id="open-app-lab">Open App Lab</button>
+                <button class="btn ghost" data-toast="The public sandbox never exposes real connection settings.">View sanitized config</button>
+              </div>
+              <div class="app-lab" id="app-lab" hidden>
+                <div class="lab-head">
+                  <div><span class="eyebrow small">MCP APPS COMPATIBILITY LAB</span><h3>Music MCP / player</h3></div>
+                  <span class="score">3 / 4 pass</span>
+                </div>
+                <div class="checks">
+                  <div class="check ok"><span>✓</span><div><strong>Resource link</strong><small><code>_meta.ui.resourceUri</code> points to the app resource</small></div></div>
+                  <div class="check ok"><span>✓</span><div><strong>MIME type</strong><small><code>text/html;profile=mcp-app</code></small></div></div>
+                  <div class="check ok"><span>✓</span><div><strong>URI isolation</strong><small><code>mcp-switch://music-mcp/…</code> prevents collisions</small></div></div>
+                  <div class="check err"><span>!</span><div><strong>Host bridge</strong><small>The component still expects legacy host CSS. Use the MCP Apps bridge first; treat <code>window.openai</code> as progressive enhancement.</small></div></div>
+                </div>
+                <div class="preview-shell">
+                  <div class="preview-top"><span></span><span></span><span></span><em>Isolated component preview · no real tool call</em></div>
+                  <div class="music-player">
+                    <button aria-label="Play demo audio">▶</button>
+                    <div><strong>Summer Signal</strong><small>structuredContent demo · 03:48</small><div class="progress"><i></i></div></div>
+                    <span>01:16</span>
+                  </div>
+                </div>
+              </div>
+            </article>
+
+            <article class="remote-card">
+              <div class="remote-main"><span class="server-icon pink large">✦</span><div class="remote-copy"><h2>Sticker MCP</h2><p>Remote HTTP · 18 tools · OAuth authorized</p></div><span class="tag ok">Online</span></div>
+            </article>
+            <article class="remote-card">
+              <div class="remote-main"><span class="server-icon green large">◎</span><div class="remote-copy"><h2>Timeline MCP</h2><p>Remote HTTP · 7 tools · protected by Switch</p></div><span class="tag ok">Online</span></div>
+            </article>
+          </div>
+
+          <aside class="draft-card" id="draft-card">
+            <div class="draft-empty" id="draft-empty">
+              <span class="webmcp-mark">AI</span>
+              <h3>Human-reviewed draft</h3>
+              <p>The agent may fill a name, HTTP(S) URL, and note. It cannot save, connect, authorize, or see a credential.</p>
+              <button class="btn ghost" id="fill-demo">Create a sample draft</button>
+            </div>
+            <form id="draft-form" hidden>
+              <div class="draft-title"><span class="webmcp-mark">AI</span><div><strong>Waiting for your review</strong><small>Not saved · not connected · not authorized</small></div></div>
+              <label>Name<input id="draft-name" value="Example MCP" /></label>
+              <label>Streamable HTTP URL<input id="draft-url" value="https://example.com/mcp" /></label>
+              <label>Note<textarea id="draft-description" rows="3">Prepared by WebMCP for human review.</textarea></label>
+              <div class="draft-actions"><button class="btn primary" type="button" data-toast="Saving is intentionally disabled in this public sandbox.">Review and add manually</button><button class="btn ghost" type="button" id="discard-draft">Discard</button></div>
+            </form>
+          </aside>
+        </div>
+      </div>
+    </section>
+
+    <section class="view" id="view-design">
+      <div class="frame narrow">
+        <div class="page-head">
+          <div><div class="eyebrow">TRUST BOUNDARY</div><h1>Useful help without silent admin power</h1><p>WebMCP shares the page's session, so the implementation separates reading, visible navigation, and configuration proposals. The agent never gets a hidden route around the person using the console.</p></div>
+        </div>
+        <div class="principle-grid">
+          <article><span>READ</span><h2>Status can be returned</h2><p>Gateway health, upstream summaries, and tool catalogs are sanitized before the agent sees them.</p></article>
+          <article><span>NAVIGATE</span><h2>The page can move</h2><p>The agent can focus Music MCP and open App Lab. The person sees exactly what changed.</p></article>
+          <article><span>DRAFT</span><h2>Changes stop for review</h2><p>A connection can be prepared, but credentials, discovery, saving, authorization, and deletion remain manual.</p></article>
+        </div>
+        <article class="card tool-card">
+          <div class="card-head"><h2>Five top-level imperative tools</h2><span>REGISTERED WITH DOCUMENT.MODELCONTEXT</span></div>
+          <div class="tool-table">
+            <div><code>mcp_switch_overview</code><span>Read gateway and current-page context</span><em>Read</em></div>
+            <div><code>list_upstream_mcp_servers</code><span>List sanitized upstream status</span><em>Read</em></div>
+            <div><code>inspect_upstream_mcp_server</code><span>Inspect one upstream and its capabilities</span><em>Read</em></div>
+            <div><code>open_mcp_app_lab</code><span>Navigate and run safe compatibility checks</span><em>Visible action</em></div>
+            <div><code>prepare_remote_mcp_server</code><span>Fill a non-sensitive connection proposal</span><em class="review">Human review</em></div>
+          </div>
+        </article>
+        <p class="implementation-note">The full MCP Switch implementation includes an authenticated Node/SQLite gateway. This public static sandbox is the exact WebMCP judging surface: the same five tools, realistic safe state, and no path to private infrastructure.</p>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="tool-dialog">
+    <button class="dialog-close" aria-label="Close">×</button>
+    <span class="eyebrow small">WEBMCP READY</span>
+    <h2>This page can work with an agent</h2>
+    <p>Open it in ChatGPT's built-in browser or WebMCP-enabled Chrome. The tools below are registered from this top-level page; the normal interface still works without WebMCP.</p>
+    <ol class="dialog-tools">
+      <li><code>mcp_switch_overview</code><span>Read overview</span></li>
+      <li><code>list_upstream_mcp_servers</code><span>List upstreams</span></li>
+      <li><code>inspect_upstream_mcp_server</code><span>Inspect one server</span></li>
+      <li><code>open_mcp_app_lab</code><span>Open diagnostics</span></li>
+      <li><code>prepare_remote_mcp_server</code><span>Prepare a draft</span></li>
+    </ol>
+  </dialog>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
