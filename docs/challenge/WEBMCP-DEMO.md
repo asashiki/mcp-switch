@@ -71,4 +71,3 @@ Summarize the split:
 - Automated tests cover registration cleanup, result redaction, diagnostics navigation, draft-only behavior, and unsafe URL rejection.
 
 Do not claim a public deployment, live browser compatibility run, or challenge submission until each one has actually been completed and recorded.
-
