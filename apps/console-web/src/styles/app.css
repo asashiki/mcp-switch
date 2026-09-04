@@ -781,6 +781,10 @@ code, .mono { font-family: var(--mono); }
   gap: 16px;
   box-shadow: var(--shadow);
 }
+.rcard.webmcp-focus {
+  border-color: color-mix(in srgb, var(--accent) 68%, var(--border));
+  box-shadow: 0 0 0 3px var(--accent-soft), var(--shadow);
+}
 .rcard .rh { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
 .rcard .rh .nm { font: var(--t-title); font-size: 17px; }
 .rcard .rh .id { font-family: var(--mono); font-size: 11px; color: var(--text-3); }
@@ -810,12 +814,101 @@ code, .mono { font-family: var(--mono); }
   flex-shrink: 0;
 }
 
+.app-lab {
+  grid-column: 1 / -1;
+  margin-top: 4px;
+  border-top: 1px solid var(--border);
+  padding-top: 18px;
+}
+.app-lab-head {
+  display: flex; justify-content: space-between; align-items: flex-start; gap: 18px;
+  margin-bottom: 14px;
+}
+.app-lab-head h4 { font: var(--t-title); font-size: 16px; }
+.app-lab-summary {
+  display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px;
+  color: var(--text-3); font-size: 12px;
+}
+.app-lab-empty {
+  background: var(--bg-tint); border-radius: var(--radius-m); color: var(--text-2);
+  padding: 16px; font-size: 13px;
+}
+.app-lab-tabs { display: flex; gap: 5px; overflow-x: auto; padding-bottom: 8px; }
+.app-lab-tabs button {
+  border: 1px solid var(--border); background: var(--surface); color: var(--text-2);
+  border-radius: var(--radius-s); padding: 6px 10px; cursor: pointer; white-space: nowrap;
+  font-size: 12px; font-weight: 600;
+}
+.app-lab-tabs button.on { background: var(--accent-soft); border-color: transparent; color: var(--accent); }
+.app-lab-grid {
+  display: grid; grid-template-columns: minmax(0, .9fr) minmax(360px, 1.1fr); gap: 14px;
+}
+.app-lab-inspector, .app-preview-panel {
+  min-width: 0; border: 1px solid var(--border); border-radius: var(--radius-m);
+  background: var(--surface-raised); padding: 14px;
+}
+.app-lab-facts { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-bottom: 12px; }
+.app-lab-facts > div {
+  background: var(--bg-tint); border-radius: var(--radius-s); padding: 8px 10px;
+  display: flex; flex-direction: column; min-width: 0;
+}
+.app-lab-facts span { color: var(--text-3); font-size: 11px; }
+.app-lab-facts strong { font-family: var(--mono); font-size: 12px; overflow: hidden; text-overflow: ellipsis; }
+.app-lab-uri { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 8px; align-items: start; margin: 7px 0; }
+.app-lab-uri span { font-size: 11px; color: var(--text-3); padding-top: 2px; }
+.app-lab-uri code { font-size: 11px; color: var(--text-2); overflow-wrap: anywhere; }
+.app-checks { display: flex; flex-direction: column; gap: 6px; margin-top: 13px; max-height: 330px; overflow: auto; }
+.app-check { display: grid; grid-template-columns: 20px 1fr; gap: 7px; padding: 8px; border-radius: var(--radius-s); background: var(--bg-tint); }
+.app-check-mark {
+  width: 18px; height: 18px; border-radius: 50%; display: inline-flex; align-items: center;
+  justify-content: center; font-size: 11px; font-weight: 800; background: var(--accent-2-soft); color: var(--accent-2);
+}
+.app-check.pass .app-check-mark { background: var(--ok-soft); color: var(--ok); }
+.app-check.warning .app-check-mark { background: var(--warn-soft); color: var(--warn); }
+.app-check.error .app-check-mark { background: var(--err-soft); color: var(--err); }
+.app-check code { font-size: 11px; color: var(--text-3); }
+.app-check p { font-size: 11.5px; color: var(--text-2); line-height: 1.4; }
+.app-preview-toolbar { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 10px; }
+.app-preview-toolbar strong { font-size: 13px; }
+.app-preview-toolbar p { font-size: 12px; color: var(--text-3); line-height: 1.45; max-width: 480px; }
+.app-preview-panel iframe {
+  width: 100%; min-height: 220px; border: 1px solid var(--border); border-radius: var(--radius-m);
+  background: #fff; transition: height .2s ease;
+}
+.app-preview-error { background: var(--err-soft); color: var(--err); border-radius: var(--radius-s); padding: 9px 11px; font-size: 11.5px; margin-bottom: 8px; }
+.app-sample { margin-top: 10px; }
+.app-sample textarea { font-family: var(--mono); font-size: 11px; resize: vertical; }
+.app-sample .btn { align-self: flex-start; }
+
 .add-remote {
   margin-top: 16px;
   border: 1.5px dashed var(--border-strong);
   border-radius: var(--radius-l);
   padding: 20px 22px;
   background: var(--surface-raised);
+}
+.add-remote.webmcp-draft {
+  border-style: solid;
+  border-color: color-mix(in srgb, var(--accent) 60%, var(--border));
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.webmcp-draft-note {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 10px;
+  margin-bottom: 16px;
+  padding: 12px;
+  border-radius: var(--radius-m);
+  background: var(--accent-soft);
+}
+.webmcp-draft-note strong { display: block; color: var(--text); font-size: 13px; margin-bottom: 2px; }
+.webmcp-draft-note p { color: var(--text-2); font-size: 12px; line-height: 1.5; }
+.webmcp-draft-note .webmcp-draft-description {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--text-3);
 }
 .add-remote h3 { font: var(--t-title); font-size: 16px; margin-bottom: 14px; }
 /* 分步骤标记 + 导入面板 */
@@ -1276,6 +1369,10 @@ code, .mono { font-family: var(--mono); }
 
   .rcard { grid-template-columns: 1fr; }
   .rcard .ops { flex-direction: row; }
+  .app-lab-head { flex-direction: column; }
+  .app-lab-summary { justify-content: flex-start; }
+  .app-lab-grid { grid-template-columns: 1fr; }
+  .app-lab-facts { grid-template-columns: 1fr 1fr; }
 
   .session {
     grid-template-columns: 36px 1fr;
@@ -1298,6 +1395,7 @@ code, .mono { font-family: var(--mono); }
   .kpi-grid { grid-template-columns: 1fr 1fr; }
   .ov-grid { grid-template-columns: 1fr; }
   .agents-grid { grid-template-columns: 1fr; }
+  .app-lab-grid { grid-template-columns: 1fr; }
   .skill {
     grid-template-columns: 18px 1fr 140px 60px;
     grid-template-areas:

@@ -2,10 +2,7 @@
 
 # MCP Switch
 
-**一个 MCP 端点，聚合你所有的本地和远程 MCP。**
-
-一个自托管网关：把你的本地和远程 MCP 服务器聚合到一个 OAuth 保护的端点之后，
-再统一暴露给任意有 MCP 功能的 AI（claude.ai、ChatGPT 等）。
+**用一个自托管端点接入所有本地与远程 MCP。**
 
 ![license](https://img.shields.io/badge/license-MIT-e96ba8)
 ![node](https://img.shields.io/badge/node-%E2%89%A524-3c873a)
@@ -35,6 +32,7 @@ MCP Switch 夹在中间：
 - **聚合**任意多个 MCP——远程（URL）或本地（stdio，在你机器上托管）——到一个端点。
 - **连一次。** 你的 AI 只看到一个连接器，背后是你所有的工具。
 - **控制台管理**——加服务器、给工具分组、按 agent 限定可见性、看审计日志。
+- **WebMCP 控制面。** 支持它的浏览器智能体可以查看脱敏状态、打开 App Lab、准备待审接入草稿。
 - **纯中转。** MCP Switch 自身不带任何工具；它原样转发工具、schema、结果，乃至 MCP Apps 的 UI 组件。
 
 ## 架构
@@ -65,7 +63,7 @@ docker compose -f infra/docker/compose.yaml --env-file .env up -d --build
 - 健康检查：`curl http://127.0.0.1:4577/health`
 - 控制台：打开 `http://127.0.0.1:4577/console`（先设密码，见下）
 
-> 反代后部署？在 `.env` 里设 `MCP_PUBLIC_URL` 和 `MCP_GATEWAY_BIND_HOST=0.0.0.0`。
+> 反向代理与 Switch 在同一台 VPS 时，只需设置 `MCP_PUBLIC_URL`，宿主端口继续绑定 `127.0.0.1`。
 
 ### 设置控制台密码
 
@@ -127,14 +125,22 @@ https://<你的 MCP_PUBLIC_URL>/mcp
 | 变量 | 作用 |
 |---|---|
 | `MCP_PUBLIC_URL` | 公网 origin；**设了才开 OAuth + 控制台**，留空 = 匿名本地 `/mcp` |
-| `MCP_AUTH_DB_PATH` | SQLite 文件（agents、OAuth、审计、技能、服务器注册表） |
+| `MCP_AUTH_DB_PATH` | 本地开发的 SQLite 路径；Docker 固定写入 `/data` volume |
 | `MCP_OAUTH_SCOPE` | 对客户端广告的 OAuth scope |
+| `MCP_OAUTH_ALLOW_LEGACY_RESOURCE_OMISSION` | 旧客户端过渡开关；重新授权完成后关闭 |
+| `MCP_ALLOWED_HOSTS` / `MCP_ALLOWED_ORIGINS` | 可选的传输层白名单；留空会从公网 URL 推导 |
 | `REMOTE_MCP_SERVERS_JSON` | 可选：预置上游服务器，省去用控制台添加 |
-| `MCP_GATEWAY_BIND_HOST` | 反代后设 `0.0.0.0` |
+| `MCP_GATEWAY_HOST` | 本地开发监听地址；Docker 会安全地覆盖容器内监听值 |
+| `MCP_GATEWAY_BIND_HOST` | 宿主机发布地址；同机反代默认保持 `127.0.0.1` |
 
 ## 文档
 
-- 📖 [使用手册](docs/manual.md) —— 控制台逐步图解。
+- [VPS 部署交接单](docs/VPS-DEPLOY.zh-CN.md) —— 可以直接交给服务器上的 AI 执行。
+- [使用手册](docs/manual.md) —— 控制台操作。
+- [安全升级与回滚](docs/deployment-and-upgrade.zh-CN.md) —— 并行部署、验证与回滚。
+- [MCP Apps App Lab](docs/mcp-apps-app-lab.zh-CN.md) —— 组件兼容诊断。
+- [WebMCP 控制面](docs/webmcp-control-plane.zh-CN.md) —— 五个受限的页面工具。
+- [文章资料包](docs/blog/MCP-SWITCH-ARTICLE-KIT.zh-CN.md) 与 [第一人称草稿](docs/blog/MCP-SWITCH-ARTICLE-DRAFT.zh-CN.md)。
 
 ## 开发
 

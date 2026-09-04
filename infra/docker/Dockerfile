@@ -19,12 +19,25 @@ COPY packages/schemas/package.json packages/schemas/package.json
 
 RUN pnpm install --frozen-lockfile
 
-FROM deps AS runtime
+FROM deps AS build
 
 COPY . .
 
 RUN pnpm build:services
 
-ENV NODE_ENV=production
+FROM node:24-bookworm-slim AS runtime
 
-CMD ["pnpm", "--filter", "@mcp-switch/mcp-gateway", "start"]
+ENV NODE_ENV=production
+ENV NPM_CONFIG_CACHE=/tmp/npm-cache
+ENV XDG_CACHE_HOME=/tmp/.cache
+
+WORKDIR /workspace/apps/mcp-gateway
+
+COPY --from=build --chown=node:node /workspace /workspace
+
+RUN mkdir -p /data /tmp/npm-cache /tmp/.cache \
+    && chown -R node:node /data /tmp/npm-cache /tmp/.cache
+
+USER node
+
+CMD ["node", "dist/server.js"]

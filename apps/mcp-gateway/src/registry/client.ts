@@ -59,11 +59,13 @@ export function createRegistryClient(registry: RemoteMcpRegistry, store: AuthSto
         ? `stdio://${[d.command, ...(d.args ?? [])].join(" ")}`.slice(0, 240)
         : d.url!;
       store.upsertRemoteServerConfig({ ...d, url, description: d.description ?? d.name });
+      await registry.invalidateServer(d.id);
       return { ok: true as const, id: d.id };
     },
 
     async deleteRemoteServer(id: string) {
       const deleted = store.deleteRemoteServerConfig(id);
+      await registry.invalidateServer(id);
       return { ok: true as const, deleted };
     },
 
@@ -84,6 +86,14 @@ export function createRegistryClient(registry: RemoteMcpRegistry, store: AuthSto
 
     async readRemoteResource(serverId: string, uri: string) {
       return registry.readResource(serverId, uri);
+    },
+
+    async diagnoseRemoteApps(serverId: string) {
+      return registry.diagnoseApps(serverId);
+    },
+
+    async readRemoteAppPreview(serverId: string, uri: string) {
+      return registry.readAppPreview(serverId, uri);
     }
   };
 }

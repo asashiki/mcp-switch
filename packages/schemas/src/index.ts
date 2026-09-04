@@ -69,8 +69,12 @@ export const remoteMcpToolSchema = z.object({
   title: z.string().nullable(),
   description: z.string().nullable(),
   readOnlyHint: z.boolean(),
-  requiredArguments: z.array(z.string().min(1)).max(24),
+  requiredArguments: z.array(z.string().min(1)).max(256),
   inputSchema: z.record(z.string(), z.unknown()),
+  outputSchema: z.record(z.string(), z.unknown()).nullable().optional(),
+  annotations: z.record(z.string(), z.unknown()).nullable().optional(),
+  icons: z.array(z.record(z.string(), z.unknown())).max(32).nullable().optional(),
+  execution: z.record(z.string(), z.unknown()).nullable().optional(),
   /** Tool-definition _meta (e.g. MCP Apps ui.resourceUri / openai outputTemplate). */
   meta: z.record(z.string(), z.unknown()).nullable().optional()
 });
@@ -116,9 +120,9 @@ export const remoteMcpServerSchema = z.object({
   toolCount: z.number().int().nonnegative(),
   readOnlyToolCount: z.number().int().nonnegative(),
   writeToolCount: z.number().int().nonnegative(),
-  tools: z.array(remoteMcpToolSchema).max(32),
+  tools: z.array(remoteMcpToolSchema).max(512),
   /** UI/template resources the server exposes (for MCP Apps passthrough). */
-  resources: z.array(remoteMcpResourceSchema).max(32).optional()
+  resources: z.array(remoteMcpResourceSchema).max(512).optional()
 });
 
 export type RemoteMcpServer = z.infer<typeof remoteMcpServerSchema>;
@@ -135,6 +139,50 @@ export const remoteMcpResourceContentsSchema = z.object({
 });
 
 export type RemoteMcpResourceContents = z.infer<typeof remoteMcpResourceContentsSchema>;
+
+export const mcpAppDiagnosticCheckSchema = z.object({
+  severity: z.enum(["pass", "info", "warning", "error"]),
+  code: z.string().min(1),
+  message: z.string().min(1),
+  toolName: z.string().nullable().optional(),
+  resourceUri: z.string().nullable().optional()
+});
+
+export const mcpAppCspSchema = z.object({
+  connectDomains: z.array(z.string()).max(128),
+  resourceDomains: z.array(z.string()).max(128),
+  frameDomains: z.array(z.string()).max(128)
+});
+
+export const mcpAppComponentDiagnosticSchema = z.object({
+  toolName: z.string().min(1),
+  toolTitle: z.string().nullable(),
+  upstreamUri: z.string().min(1),
+  proxyUri: z.string().min(1),
+  resourceFound: z.boolean(),
+  mimeType: z.string().nullable(),
+  normalizedMimeType: z.string().nullable(),
+  bridge: z.enum(["mcp-apps", "openai-only", "static-or-unknown", "unreadable"]),
+  htmlBytes: z.number().int().nonnegative().nullable(),
+  dedicatedDomain: z.string().nullable(),
+  csp: mcpAppCspSchema,
+  hasOutputSchema: z.boolean(),
+  sampleStructuredContent: z.unknown().nullable(),
+  checks: z.array(mcpAppDiagnosticCheckSchema).max(128)
+});
+
+export const mcpAppDiagnosticsSchema = z.object({
+  serverId: z.string().min(1),
+  generatedAt: z.string().datetime(),
+  status: z.enum(["none", "pass", "warning", "error"]),
+  uiToolCount: z.number().int().nonnegative(),
+  appResourceCount: z.number().int().nonnegative(),
+  namespaceIsolation: z.boolean(),
+  components: z.array(mcpAppComponentDiagnosticSchema).max(512),
+  checks: z.array(mcpAppDiagnosticCheckSchema).max(512)
+});
+
+export type McpAppDiagnostics = z.infer<typeof mcpAppDiagnosticsSchema>;
 
 export const remoteMcpToolInvokeInputSchema = z.object({
   arguments: z.record(z.string(), z.unknown()).default({}),

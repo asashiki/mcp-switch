@@ -215,6 +215,32 @@ export function registerConsoleApi(
     }
   });
 
+  server.get("/api/console/remote/:id/app-diagnostics", async (request, reply) => {
+    if (!auth(request, reply)) return reply;
+    const { id } = request.params as { id: string };
+    reply.header("Cache-Control", "no-store");
+    try {
+      return await client.diagnoseRemoteApps(id);
+    } catch (e) {
+      reply.code(400);
+      return { error: e instanceof Error ? e.message : "MCP Apps diagnostics failed" };
+    }
+  });
+
+  server.get("/api/console/remote/:id/app-preview", async (request, reply) => {
+    if (!auth(request, reply)) return reply;
+    const { id } = request.params as { id: string };
+    const { uri } = (request.query ?? {}) as { uri?: string };
+    if (!uri) { reply.code(400); return { error: "uri is required" }; }
+    reply.header("Cache-Control", "no-store");
+    try {
+      return await client.readRemoteAppPreview(id, uri);
+    } catch (e) {
+      reply.code(400);
+      return { error: e instanceof Error ? e.message : "MCP Apps preview failed" };
+    }
+  });
+
   // 对齐 claude.ai 的连接器表单：Name + URL 必填；OAuth Client ID/Secret 可选
   // （预注册客户端）；Bearer Token 可选（静态 token 服务器）。无 id 时由 name 生成。
   server.post("/api/console/remote", async (request, reply) => {

@@ -1,6 +1,22 @@
-import { McpServer } from "@modelcontextprotocol/server";
-import { z } from "zod";
+import {
+  McpServer,
+  fromJsonSchema,
+  type CallToolResult,
+  type Icon,
+  type JsonSchemaType,
+  type ToolAnnotations,
+  type ToolExecution,
+  type jsonSchemaValidator
+} from "@modelcontextprotocol/server";
+import { AjvJsonSchemaValidator } from "@modelcontextprotocol/server/validators/ajv";
 import type { RegistryClient } from "./registry/client.js";
+import {
+  normalizeAppMimeType,
+  normalizeAppResourceMeta,
+  proxyResourceUri,
+  resourceUrisFromMeta,
+  rewriteAppToolMeta
+} from "./registry/proxy-metadata.js";
 
 export interface RemoteToolDescriptor {
   skillId: string;
@@ -9,6 +25,10 @@ export interface RemoteToolDescriptor {
   serverId: string;
   toolName: string;
   inputSchema: Record<string, unknown>;
+  outputSchema?: Record<string, unknown> | null;
+  annotations?: Record<string, unknown> | null;
+  icons?: Array<Record<string, unknown>> | null;
+  execution?: Record<string, unknown> | null;
   /** Whether invoking the upstream tool is expected to be side-effect free. */
   readOnly: boolean;
   allowWrite: boolean;
@@ -18,6 +38,7 @@ export interface RemoteToolDescriptor {
 
 export interface RemoteResourceDescriptor {
   serverId: string;
+  /** URI used when reading from the upstream server. */
   uri: string;
   name: string | null;
   title: string | null;
@@ -26,158 +47,178 @@ export interface RemoteResourceDescriptor {
   meta: Record<string, unknown> | null;
 }
 
-// MCP clients (and the models behind them) sometimes serialize every tool
-// argument as a string ("730", "true", "[1,2]"). The downstream remote server
-// validates with its own strict Zod schema and rejects the wrong JS type. So we
-// rebuild the remote tool's JSON Schema into a typed Zod schema that (a) ADVERTISES
-// the correct type back to the client (model sends the right type), and (b)
-// COERCES a stray string to the right type before we forward it. preprocess keeps
-// the advertised JSON Schema as the inner type (pipeStrategy: 'input').
-const coerceNumber = (v: unknown) =>
-  typeof v === "string" && v.trim() !== "" && !Number.isNaN(Number(v)) ? Number(v) : v;
-const coerceBool = (v: unknown) =>
-  v === "true" ? true : v === "false" ? false : v;
-const coerceJson = (v: unknown) => {
-  if (typeof v !== "string") return v;
-  const s = v.trim();
-  if (!s) return v;
-  try { return JSON.parse(s); } catch { return v; }
-};
-
-function jsonSchemaTypeToZod(prop: Record<string, unknown>): z.ZodTypeAny {
-  const rawType = prop?.type;
-  const type = Array.isArray(rawType)
-    ? (rawType as unknown[]).map(String).find((x) => x !== "null")
-    : typeof rawType === "string" ? rawType : undefined;
-
-  // enum of strings → keep as string (constraint surfaces in JSON Schema).
-  if (Array.isArray(prop?.enum) && (prop.enum as unknown[]).every((e) => typeof e === "string") && (prop.enum as unknown[]).length) {
-    return z.enum(prop.enum as [string, ...string[]]);
-  }
-
-  switch (type) {
-    case "string":
-      return z.string();
-    case "integer":
-    case "number":
-      return z.preprocess(coerceNumber, z.number());
-    case "boolean":
-      return z.preprocess(coerceBool, z.boolean());
-    case "array": {
-      const items = (prop?.items && typeof prop.items === "object" && !Array.isArray(prop.items))
-        ? jsonSchemaTypeToZod(prop.items as Record<string, unknown>)
-        : z.unknown();
-      return z.preprocess(coerceJson, z.array(items));
-    }
-    case "object": {
-      const nested = (prop?.properties && typeof prop.properties === "object")
-        ? z.object(jsonSchemaToRawShape(prop as Record<string, unknown>)).passthrough()
-        : z.record(z.string(), z.unknown());
-      return z.preprocess(coerceJson, nested);
-    }
-    default:
-      // Unknown/missing type: stay permissive (don't break the call).
-      return z.unknown();
-  }
-}
-
-function jsonSchemaToRawShape(schema: Record<string, unknown>): Record<string, z.ZodTypeAny> {
-  const shape: Record<string, z.ZodTypeAny> = {};
-  const props = (schema?.properties ?? {}) as Record<string, Record<string, unknown>>;
-  const required = Array.isArray(schema?.required) ? (schema.required as string[]) : [];
-  for (const [key, prop] of Object.entries(props)) {
-    let t = jsonSchemaTypeToZod(prop ?? {});
-    const desc = prop && typeof prop.description === "string" ? prop.description : undefined;
-    if (desc) t = t.describe(desc);
-    if (!required.includes(key)) t = t.optional();
-    shape[key] = t;
-  }
-  return shape;
-}
-
-export interface ToolContext {
-  /** Flattened remote tools to re-expose as top-level `rmcp__<server>__<tool>`. */
-  remoteTools: RemoteToolDescriptor[];
-  /** UI resources exposed by upstream servers (MCP Apps widgets), for passthrough. */
-  remoteResources?: RemoteResourceDescriptor[];
-  readRemoteResource?: (serverId: string, uri: string) => Promise<{ contents: Array<{ uri: string; mimeType?: string | null; text?: string | null; blob?: string | null; meta?: unknown }> }>;
+function schemaType(schema: Record<string, unknown>): string | undefined {
+  const raw = schema.type;
+  if (typeof raw === "string") return raw;
+  if (Array.isArray(raw)) return raw.find((item): item is string => typeof item === "string" && item !== "null");
+  return undefined;
 }
 
 /**
- * Registers the aggregated upstream tools (and their UI resources) on the given
- * MCP server. MCP Switch ships no built-in tools — everything exposed here is a
- * proxy to an upstream MCP server added through the console.
+ * Models occasionally serialize typed arguments as strings. Coerce only when
+ * the schema has one unambiguous direct type, then let the SDK's full JSON
+ * Schema validator enforce every constraint ($ref/oneOf/pattern/ranges, etc.).
  */
+function coerceForSchema(schema: Record<string, unknown>, input: unknown): unknown {
+  const type = schemaType(schema);
+  if ((type === "number" || type === "integer") && typeof input === "string" && input.trim() !== "") {
+    const parsed = Number(input);
+    return Number.isFinite(parsed) ? parsed : input;
+  }
+  if (type === "boolean" && typeof input === "string") {
+    if (input === "true") return true;
+    if (input === "false") return false;
+  }
+  if ((type === "array" || type === "object") && typeof input === "string") {
+    try { return coerceForSchema(schema, JSON.parse(input)); } catch { return input; }
+  }
+  if (type === "array" && Array.isArray(input)) {
+    const items = schema.items;
+    return items && typeof items === "object" && !Array.isArray(items)
+      ? input.map((item) => coerceForSchema(items as Record<string, unknown>, item))
+      : input;
+  }
+  if (type === "object" && input && typeof input === "object" && !Array.isArray(input)) {
+    const properties = schema.properties && typeof schema.properties === "object"
+      ? schema.properties as Record<string, unknown>
+      : {};
+    const out = { ...(input as Record<string, unknown>) };
+    for (const [key, propertySchema] of Object.entries(properties)) {
+      if (key in out && propertySchema && typeof propertySchema === "object" && !Array.isArray(propertySchema)) {
+        out[key] = coerceForSchema(propertySchema as Record<string, unknown>, out[key]);
+      }
+    }
+    return out;
+  }
+  return input;
+}
+
+const strictJsonSchemaValidator = new AjvJsonSchemaValidator();
+const coercingJsonSchemaValidator: jsonSchemaValidator = {
+  getValidator<T>(schema: JsonSchemaType) {
+    const validate = strictJsonSchemaValidator.getValidator<T>(schema);
+    return (input: unknown) => validate(coerceForSchema(schema as Record<string, unknown>, input));
+  }
+};
+
+export interface ToolContext {
+  /** Flattened remote tools to re-expose as top-level proxy tools. */
+  remoteTools: RemoteToolDescriptor[];
+  /** UI resources exposed by upstream servers (MCP Apps widgets), for passthrough. */
+  remoteResources?: RemoteResourceDescriptor[];
+  readRemoteResource?: (serverId: string, uri: string) => Promise<{
+    contents: Array<{
+      uri: string;
+      mimeType?: string | null;
+      text?: string | null;
+      blob?: string | null;
+      meta?: unknown;
+    }>;
+  }>;
+}
+
+/** Register protocol-faithful upstream tools and collision-safe MCP Apps resources. */
 export function registerTools(server: McpServer, client: RegistryClient, ctx: ToolContext) {
-  // ───────────── upstream UI resources (MCP Apps widgets) ─────────────
-  // Register each upstream server's UI resource so claude.ai / ChatGPT can fetch
-  // the widget HTML through the gateway. Reads are forwarded to the origin server
-  // via the registry. _meta (e.g. iframe CSP) is relayed through.
   const readRemoteResource = ctx.readRemoteResource;
-  const seenResourceUris = new Set<string>();
+  const linkedAppResources = new Set(
+    ctx.remoteTools.flatMap((tool) => resourceUrisFromMeta(tool.meta))
+  );
+
   for (const rr of ctx.remoteResources ?? []) {
     if (!readRemoteResource) break;
-    // A URI can only be registered once; if two servers expose the same uri,
-    // first wins (rare — ui:// schemes are usually server-namespaced).
-    if (seenResourceUris.has(rr.uri)) continue;
-    seenResourceUris.add(rr.uri);
+    const publicUri = proxyResourceUri(rr.serverId, rr.uri);
+    const linkedApp = linkedAppResources.has(rr.uri);
+    const mimeType = normalizeAppMimeType(rr.mimeType, linkedApp);
+    const resourceMeta = normalizeAppResourceMeta(rr.meta);
     server.registerResource(
-      `rmcp-${rr.serverId}-${rr.uri}`,
-      rr.uri,
+      `rmcp-resource-${rr.serverId}-${Buffer.from(rr.uri).toString("base64url")}`,
+      publicUri,
       {
         title: rr.title ?? rr.name ?? rr.uri,
         description: rr.description ?? `Remote UI resource from ${rr.serverId}.`,
-        ...(rr.mimeType ? { mimeType: rr.mimeType } : {}),
-        ...(rr.meta ? { _meta: rr.meta } : {})
+        ...(mimeType ? { mimeType } : {}),
+        ...(resourceMeta ? { _meta: resourceMeta } : {})
       },
-      async (uri) => {
-        const target = typeof uri === "string" ? uri : uri.href;
-        const r = await readRemoteResource(rr.serverId, target);
-        const contents = r.contents.map((c) => {
+      async () => {
+        const result = await readRemoteResource(rr.serverId, rr.uri);
+        const contents = result.contents.map((content) => {
+          const contentUri = proxyResourceUri(rr.serverId, content.uri || rr.uri);
+          const contentMime = normalizeAppMimeType(content.mimeType ?? rr.mimeType, linkedApp);
+          const contentMeta = normalizeAppResourceMeta(
+            content.meta && typeof content.meta === "object"
+              ? content.meta as Record<string, unknown>
+              : rr.meta
+          );
           const base = {
-            uri: c.uri ?? target,
-            ...(c.mimeType ? { mimeType: c.mimeType } : {}),
-            ...(c.meta ? { _meta: c.meta as Record<string, unknown> } : {})
+            uri: contentUri,
+            ...(contentMime ? { mimeType: contentMime } : {}),
+            ...(contentMeta ? { _meta: contentMeta } : {})
           };
-          // SDK requires text XOR blob per content item.
-          if (typeof c.blob === "string") return { ...base, blob: c.blob };
-          return { ...base, text: typeof c.text === "string" ? c.text : "" };
+          if (typeof content.blob === "string") return { ...base, blob: content.blob };
+          return { ...base, text: typeof content.text === "string" ? content.text : "" };
         });
         return { contents };
       }
     );
   }
 
-  // ───────────── proxied upstream tools (source='remote-mcp') ─────────────
-  // Pre-filtered by the caller to the agent's visible+enabled set. Each forwards
-  // to the registry's full-result proxy. Tool-definition _meta and result _meta are
-  // relayed so MCP Apps UIs render.
   for (const rt of ctx.remoteTools) {
-    server.registerTool(
+    const rewrittenMeta = rewriteAppToolMeta(rt.meta, rt.serverId);
+    const registered = server.registerTool(
       rt.skillId,
       {
         title: rt.title,
         description: rt.description ?? `Remote tool ${rt.toolName} (via ${rt.serverId}).`,
-        inputSchema: jsonSchemaToRawShape(rt.inputSchema),
-        annotations: { openWorldHint: true },
-        ...(rt.meta ? { _meta: rt.meta } : {})
+        inputSchema: fromJsonSchema(rt.inputSchema as JsonSchemaType, coercingJsonSchemaValidator),
+        ...(rt.outputSchema
+          ? { outputSchema: fromJsonSchema(rt.outputSchema as JsonSchemaType) }
+          : {}),
+        ...(rt.annotations ? { annotations: rt.annotations as ToolAnnotations } : {}),
+        ...(rt.icons ? { icons: rt.icons as Icon[] } : {}),
+        ...(rewrittenMeta ? { _meta: rewrittenMeta } : {})
       },
-      async (args: Record<string, unknown>) => {
+      async (args: unknown) => {
         try {
-          const r = await client.proxyRemoteMcpTool(rt.serverId, rt.toolName, args ?? {}, rt.allowWrite);
-          const content = Array.isArray(r.content) && r.content.length
-            ? r.content
-            : [{ type: "text", text: typeof r.structuredContent !== "undefined" ? JSON.stringify(r.structuredContent) : "(no content)" }];
+          const input = args && typeof args === "object" && !Array.isArray(args)
+            ? args as Record<string, unknown>
+            : {};
+          const result = await client.proxyRemoteMcpTool(
+            rt.serverId,
+            rt.toolName,
+            input,
+            rt.allowWrite
+          );
+          const content = Array.isArray(result.content) && result.content.length
+            ? result.content
+            : [{
+                type: "text",
+                text: typeof result.structuredContent !== "undefined"
+                  ? JSON.stringify(result.structuredContent)
+                  : "(no content)"
+              }];
+          const resultMeta = rewriteAppToolMeta(
+            result.meta && typeof result.meta === "object"
+              ? result.meta as Record<string, unknown>
+              : undefined,
+            rt.serverId
+          );
           return {
-            content: content as { type: "text"; text: string }[],
-            structuredContent: r.structuredContent as Record<string, unknown> | undefined,
-            isError: r.isError,
-            ...(r.meta ? { _meta: r.meta as Record<string, unknown> } : {})
+            content: content as CallToolResult["content"],
+            structuredContent: result.structuredContent as Record<string, unknown> | undefined,
+            isError: result.isError,
+            ...(resultMeta ? { _meta: resultMeta } : {})
           };
-        } catch (e) {
-          return { content: [{ type: "text" as const, text: `Remote tool failed: ${e instanceof Error ? e.message : String(e)}` }], isError: true };
+        } catch (error) {
+          return {
+            content: [{
+              type: "text" as const,
+              text: `Remote tool failed: ${error instanceof Error ? error.message : String(error)}`
+            }],
+            isError: true
+          };
         }
       }
     );
+    if (rt.execution) registered.execution = rt.execution as ToolExecution;
   }
 }

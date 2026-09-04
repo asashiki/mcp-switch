@@ -9,17 +9,35 @@ services:
       context: ../..
       dockerfile: infra/docker/Dockerfile
       target: runtime
-    command: ["pnpm", "--filter", "@mcp-switch/mcp-gateway", "start"]
+    command: ["node", "dist/server.js"]
+    init: true
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: ${MCP_CONTAINER_PIDS_LIMIT:-256}
+    mem_limit: ${MCP_CONTAINER_MEMORY_LIMIT:-1g}
+    cpus: ${MCP_CONTAINER_CPU_LIMIT:-2.0}
     environment:
       NODE_ENV: ${NODE_ENV:-production}
-      MCP_GATEWAY_HOST: ${MCP_GATEWAY_HOST:-0.0.0.0}
+      # Always listen on the container interface. Host exposure is controlled
+      # separately by MCP_GATEWAY_BIND_HOST in the ports mapping below.
+      MCP_GATEWAY_HOST: 0.0.0.0
       MCP_GATEWAY_PORT: ${MCP_GATEWAY_PORT:-4577}
-      MCP_AUTH_DB_PATH: ${MCP_AUTH_DB_PATH:-/data/mcp-switch.sqlite}
+      # The runtime filesystem is read-only; persistent state belongs in the
+      # volume mounted at /data. MCP_AUTH_DB_PATH in .env is for local dev.
+      MCP_AUTH_DB_PATH: /data/mcp-switch.sqlite
       # Public base URL (e.g. https://mcp.example.com). When set, the gateway
       # enables OAuth 2.1 + the management console; unset → anonymous /mcp.
       MCP_PUBLIC_URL: ${MCP_PUBLIC_URL:-}
       MCP_OAUTH_SCOPE: ${MCP_OAUTH_SCOPE:-tools:read tools:write}
+      MCP_OAUTH_ALLOW_LEGACY_RESOURCE_OMISSION: ${MCP_OAUTH_ALLOW_LEGACY_RESOURCE_OMISSION:-true}
       MCP_CONSOLE_CORS_ORIGINS: ${MCP_CONSOLE_CORS_ORIGINS:-http://localhost:5173,http://localhost:3000}
+      MCP_ALLOWED_HOSTS: ${MCP_ALLOWED_HOSTS:-}
+      MCP_ALLOWED_ORIGINS: ${MCP_ALLOWED_ORIGINS:-}
+      NPM_CONFIG_CACHE: /tmp/npm-cache
+      XDG_CACHE_HOME: /tmp/.cache
       # Optional: pre-seed upstream MCP servers as a JSON array (otherwise add via console).
       REMOTE_MCP_SERVERS_JSON: ${REMOTE_MCP_SERVERS_JSON:-}
     ports:
@@ -29,6 +47,8 @@ services:
       - "${MCP_GATEWAY_BIND_HOST:-127.0.0.1}:${MCP_GATEWAY_HOST_PORT:-${MCP_GATEWAY_PORT:-4577}}:${MCP_GATEWAY_PORT:-4577}"
     volumes:
       - mcp_switch_data:/data
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=256m
     restart: unless-stopped
     healthcheck:
       # Read the port from env so it tracks MCP_GATEWAY_PORT instead of hard-coding it.

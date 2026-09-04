@@ -1,5 +1,10 @@
 import Fastify, { type FastifyReply, type FastifyRequest } from "fastify";
-import { createMcpHandler, type AuthInfo } from "@modelcontextprotocol/server";
+import {
+  createMcpHandler,
+  validateHostHeader,
+  validateOriginHeader,
+  type AuthInfo
+} from "@modelcontextprotocol/server";
 import { toNodeHandler } from "@modelcontextprotocol/node";
 import { createServiceHealth, serviceManifestSchema } from "@mcp-switch/schemas";
 import { parseServiceEnv } from "@mcp-switch/config";
@@ -16,6 +21,7 @@ import { registerOAuthRoutes } from "./auth/routes.js";
 import { parseBearer } from "./auth/tokens.js";
 import { registerConsoleApi } from "./console/api.js";
 import { registerConsoleSpa } from "./console/spa.js";
+import { proxyToolName, resourceUrisFromMeta } from "./registry/proxy-metadata.js";
 
 export const mcpGatewayEnvSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
@@ -27,8 +33,11 @@ export const mcpGatewayEnvSchema = z.object({
   MCP_PUBLIC_URL: z.string().url().optional(),
   MCP_AUTH_DB_PATH: z.string().min(1).default("./data/mcp-auth.sqlite"),
   MCP_OAUTH_SCOPE: z.string().min(1).default("tools:read tools:write"),
+  MCP_OAUTH_ALLOW_LEGACY_RESOURCE_OMISSION: z.enum(["true", "false"]).default("true").transform((value) => value === "true"),
   // Console SPA (decoupled frontend) CORS allowlist, comma-separated origins.
-  MCP_CONSOLE_CORS_ORIGINS: z.string().default("http://localhost:5173,http://localhost:3000")
+  MCP_CONSOLE_CORS_ORIGINS: z.string().default("http://localhost:5173,http://localhost:3000"),
+  MCP_ALLOWED_HOSTS: z.string().default(""),
+  MCP_ALLOWED_ORIGINS: z.string().default("")
 });
 
 export type McpGatewayEnv = z.infer<typeof mcpGatewayEnvSchema>;
@@ -46,7 +55,10 @@ export function loadMcpGatewayEnv(source: NodeJS.ProcessEnv): McpGatewayEnv {
   const normalizedSource: NodeJS.ProcessEnv = {
     ...source,
     HOST: source.MCP_GATEWAY_HOST ?? source.HOST,
-    PORT: source.MCP_GATEWAY_PORT ?? source.PORT
+    PORT: source.MCP_GATEWAY_PORT ?? source.PORT,
+    // Docker Compose represents an intentionally unset optional value as an
+    // empty string. Normalize it before the URL schema runs.
+    MCP_PUBLIC_URL: source.MCP_PUBLIC_URL?.trim() || undefined,
   };
 
   return mcpGatewayEnvSchema.parse(
@@ -56,24 +68,14 @@ export function loadMcpGatewayEnv(source: NodeJS.ProcessEnv): McpGatewayEnv {
       MCP_PUBLIC_URL: z.string().url().optional(),
       MCP_AUTH_DB_PATH: z.string().min(1).default("./data/mcp-auth.sqlite"),
       MCP_OAUTH_SCOPE: z.string().min(1).default("tools:read tools:write"),
-      MCP_CONSOLE_CORS_ORIGINS: z.string().default("http://localhost:5173,http://localhost:3000")
+      // Keep this as a string here. mcpGatewayEnvSchema performs the single
+      // string -> boolean transform after the shared service parser returns.
+      MCP_OAUTH_ALLOW_LEGACY_RESOURCE_OMISSION: z.enum(["true", "false"]).default("true"),
+      MCP_CONSOLE_CORS_ORIGINS: z.string().default("http://localhost:5173,http://localhost:3000"),
+      MCP_ALLOWED_HOSTS: z.string().default(""),
+      MCP_ALLOWED_ORIGINS: z.string().default("")
     })
   );
-}
-
-/**
- * Extract widget/template resource URIs referenced by a tool's _meta, across
- * the known MCP-Apps namespaces (Claude `ui.resourceUri`, ChatGPT
- * `openai/outputTemplate`). Generic: no per-server knowledge.
- */
-function resourceUrisFromMeta(meta: Record<string, unknown> | null | undefined): string[] {
-  if (!meta || typeof meta !== "object") return [];
-  const out: string[] = [];
-  const ui = meta.ui as { resourceUri?: unknown } | undefined;
-  if (ui && typeof ui.resourceUri === "string") out.push(ui.resourceUri);
-  const tmpl = meta["openai/outputTemplate"];
-  if (typeof tmpl === "string") out.push(tmpl);
-  return out;
 }
 
 export async function createMcpGatewayApp(options?: {
@@ -83,6 +85,36 @@ export async function createMcpGatewayApp(options?: {
 }) {
   const env = options?.env ?? loadMcpGatewayEnv(process.env);
   const startedAt = options?.startedAt ?? new Date();
+  const issuer = env.MCP_PUBLIC_URL?.replace(/\/$/, "");
+  const canonicalMcpResource = issuer ? `${issuer}/mcp` : null;
+
+  const toHostname = (value: string): string | null => {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    try {
+      return new URL(trimmed.includes("://") ? trimmed : `http://${trimmed}`).hostname;
+    } catch {
+      return null;
+    }
+  };
+  const configuredHostnames = (value: string): string[] =>
+    value.split(",").map(toHostname).filter((item): item is string => Boolean(item));
+  const localHostnames = ["localhost", "127.0.0.1", "[::1]"];
+  const publicHostname = issuer ? new URL(issuer).hostname : null;
+  const allowedHostnames = [...new Set(
+    env.MCP_ALLOWED_HOSTS.trim()
+      ? configuredHostnames(env.MCP_ALLOWED_HOSTS)
+      : [...localHostnames, ...(publicHostname ? [publicHostname] : [])]
+  )];
+  const allowedOriginHostnames = [...new Set(
+    env.MCP_ALLOWED_ORIGINS.trim()
+      ? configuredHostnames(env.MCP_ALLOWED_ORIGINS)
+      : [
+          ...localHostnames,
+          ...(publicHostname ? [publicHostname] : []),
+          ...configuredHostnames(env.MCP_CONSOLE_CORS_ORIGINS)
+        ]
+  )];
 
   // Single SQLite store holds everything: agents/OAuth/audit/skills AND the
   // upstream-server registry. The registry connects to upstream MCP servers
@@ -124,12 +156,15 @@ export async function createMcpGatewayApp(options?: {
     const agentId = typeof requestContext.authInfo?.extra?.agentId === "string"
       ? requestContext.authInfo.extra.agentId
       : undefined;
+    const canRead = !requestContext.authInfo || requestContext.authInfo.scopes.includes("tools:read");
     const canWrite = !requestContext.authInfo || requestContext.authInfo.scopes.includes("tools:write");
     // Filter tools/list: globally-enabled skills, narrowed to the agent's
     // allowlist when it has one.
     const enabledSkills = agentId ? store.getVisibleSkillIdsForAgent(agentId) : store.getEnabledSkillIds();
     // Upstream tools that are enabled + visible for this agent.
-    const remoteTools = store.getRemoteDescriptors(enabledSkills).filter((tool) => canWrite || tool.readOnly);
+    const remoteTools = store.getRemoteDescriptors(enabledSkills).filter((tool) =>
+      tool.readOnly ? canRead : canWrite
+    );
     // UI resources (MCP Apps widgets) for the servers whose tools are exposed,
     // so upstream tool UIs render through the gateway.
     const remoteServerIds = new Set(remoteTools.map((t) => t.serverId));
@@ -152,7 +187,51 @@ export async function createMcpGatewayApp(options?: {
   });
   const nodeMcpHandler = toNodeHandler(mcpHandler);
 
-  async function handleMcp(request: FastifyRequest, reply: FastifyReply, authInfo?: AuthInfo) {
+  const transportHeaderRejection = (request: FastifyRequest, reply: FastifyReply) => {
+    const host = validateHostHeader(request.headers.host, allowedHostnames);
+    const originValue = Array.isArray(request.headers.origin) ? request.headers.origin[0] : request.headers.origin;
+    const origin = validateOriginHeader(originValue, allowedOriginHostnames);
+    const rejected = !host.ok ? host : !origin.ok ? origin : null;
+    if (!rejected) return null;
+    reply.code(403).type("application/json");
+    return {
+      jsonrpc: "2.0",
+      error: { code: -32000, message: rejected.message },
+      id: null
+    };
+  };
+
+  const requiredScopeForRequest = (request: FastifyRequest): string | null => {
+    const body = request.body && typeof request.body === "object" && !Array.isArray(request.body)
+      ? request.body as { method?: unknown; params?: { name?: unknown } }
+      : undefined;
+    const methodHeader = request.headers["mcp-method"];
+    const nameHeader = request.headers["mcp-name"];
+    const method = typeof methodHeader === "string"
+      ? methodHeader
+      : typeof body?.method === "string" ? body.method : null;
+    const name = typeof nameHeader === "string"
+      ? nameHeader
+      : typeof body?.params?.name === "string" ? body.params.name : null;
+    if (method === "tools/call" && name) {
+      return store.getSkillReadOnly(name) === false ? "tools:write" : "tools:read";
+    }
+    if (method === "tools/list" || method === "resources/list" || method === "resources/read") {
+      return "tools:read";
+    }
+    return null;
+  };
+
+  async function handleMcp(
+    request: FastifyRequest,
+    reply: FastifyReply,
+    authInfo?: AuthInfo,
+    headersValidated = false
+  ) {
+    if (!headersValidated) {
+      const rejection = transportHeaderRejection(request, reply);
+      if (rejection) return rejection;
+    }
     (request.raw as typeof request.raw & { auth?: AuthInfo }).auth = authInfo;
     await nodeMcpHandler(request.raw, reply.raw, request.body);
     return reply;
@@ -179,14 +258,25 @@ export async function createMcpGatewayApp(options?: {
         for (const r of s.resources ?? []) resourceByUri.set(r.uri, r);
         for (const tool of s.tools ?? []) {
           store.seedSkill({
-            skillId: `rmcp__${s.id}__${tool.name}`,
+            skillId: proxyToolName(s.id, tool.name),
             title: `${s.name}: ${tool.title ?? tool.name}`,
             category: "remote",
             source: "remote-mcp",
             enabled: tool.readOnlyHint !== false,
             description: tool.description ?? null,
             readOnly: tool.readOnlyHint,
-            remoteMeta: { serverId: s.id, serverName: s.name, toolName: tool.name, inputSchema: tool.inputSchema ?? {}, readOnly: tool.readOnlyHint, toolMeta: tool.meta ?? null }
+            remoteMeta: {
+              serverId: s.id,
+              serverName: s.name,
+              toolName: tool.name,
+              inputSchema: tool.inputSchema ?? {},
+              outputSchema: tool.outputSchema ?? null,
+              annotations: tool.annotations ?? null,
+              icons: tool.icons ?? null,
+              execution: tool.execution ?? null,
+              readOnly: tool.readOnlyHint,
+              toolMeta: tool.meta ?? null
+            }
           });
           seeded += 1;
           for (const uri of resourceUrisFromMeta(tool.meta)) {
@@ -210,30 +300,54 @@ export async function createMcpGatewayApp(options?: {
       accessTtlSeconds: 3600,
       refreshTtlSeconds: 30 * 24 * 3600,
       codeTtlSeconds: 300,
-      pendingTtlSeconds: 600
+      pendingTtlSeconds: 600,
+      allowLegacyResourceOmission: env.MCP_OAUTH_ALLOW_LEGACY_RESOURCE_OMISSION
     });
 
-    const wwwAuth = `Bearer resource_metadata="${env.MCP_PUBLIC_URL.replace(/\/$/, "")}/.well-known/oauth-protected-resource"`;
+    const resourceMetadataUrl = `${issuer}/.well-known/oauth-protected-resource/mcp`;
+    const wwwAuth = `Bearer resource_metadata="${resourceMetadataUrl}", scope="tools:read"`;
 
     // Canonical MCP entrypoint — Bearer required when OAuth is enabled.
     // /mcp-oauth is kept as an alias for clients that connected during the rollout.
     const protectedMcp = async (request: FastifyRequest, reply: FastifyReply) => {
+      // Reject DNS-rebinding/cross-origin transport requests before inspecting
+      // bearer credentials so the protection is identical for authenticated
+      // and unauthenticated traffic.
+      const rejection = transportHeaderRejection(request, reply);
+      if (rejection) return rejection;
       const token = parseBearer(request.headers.authorization);
-      const ctx = token ? store.validateAccessToken(token) : null;
+      const ctx = token && canonicalMcpResource
+        ? store.validateAccessToken(
+            token,
+            canonicalMcpResource,
+            env.MCP_OAUTH_ALLOW_LEGACY_RESOURCE_OMISSION
+          )
+        : null;
       if (!ctx) {
         reply.header("WWW-Authenticate", wwwAuth);
         reply.code(401);
         store.audit({ action: "mcp_unauthorized", success: false });
         return { error: "unauthorized" };
       }
+      const requiredScope = requiredScopeForRequest(request);
+      const grantedScopes = ctx.scope.split(/\s+/).filter(Boolean);
+      if (requiredScope && !grantedScopes.includes(requiredScope)) {
+        reply.header(
+          "WWW-Authenticate",
+          `Bearer error="insufficient_scope", scope="${requiredScope}", resource_metadata="${resourceMetadataUrl}"`
+        );
+        reply.code(403);
+        store.audit({ agentId: ctx.agentId, clientId: ctx.clientId, action: "mcp_insufficient_scope", success: false, detail: requiredScope });
+        return { error: "insufficient_scope", required_scope: requiredScope };
+      }
       store.audit({ agentId: ctx.agentId, clientId: ctx.clientId, action: "mcp_request", success: true });
       return handleMcp(request, reply, {
         token: token!,
         clientId: ctx.clientId,
-        scopes: ctx.scope.split(/\s+/).filter(Boolean),
+        scopes: grantedScopes,
         expiresAt: ctx.expiresAt,
         extra: { agentId: ctx.agentId }
-      });
+      }, true);
     };
     server.all("/mcp", protectedMcp);
     server.all("/mcp-oauth", protectedMcp);
@@ -260,6 +374,7 @@ export async function createMcpGatewayApp(options?: {
 
   server.addHook("onClose", async () => {
     await mcpHandler.close();
+    await registry.close();
     store.close();
   });
 

@@ -16,7 +16,9 @@
     "build:services": "pnpm --filter @mcp-switch/console-web build && pnpm --filter @mcp-switch/mcp-gateway build",
     "typecheck": "pnpm -r typecheck",
     "smoke": "pnpm --filter @mcp-switch/mcp-gateway smoke",
-    "test": "pnpm --filter @mcp-switch/mcp-gateway test"
+    "check:remote": "pnpm --filter @mcp-switch/mcp-gateway check:remote",
+    "test": "pnpm test:webmcp && pnpm --filter @mcp-switch/mcp-gateway test",
+    "test:webmcp": "node --import tsx --test apps/console-web/src/webmcp/control-plane.test.ts"
   },
   "devDependencies": {
     "@types/node": "^24.6.0",

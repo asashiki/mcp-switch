@@ -1,15 +1,14 @@
 import { randomUUID } from "node:crypto";
 import {
   Client,
-  StreamableHTTPClientTransport,
   auth,
   UnauthorizedError,
   type OAuthClientProvider,
   type OAuthClientInformationMixed,
   type OAuthClientMetadata,
-  type OAuthTokens
+  type OAuthTokens,
+  type Tool
 } from "@modelcontextprotocol/client";
-import { StdioClientTransport, getDefaultEnvironment } from "@modelcontextprotocol/client/stdio";
 import {
   connectorSchema,
   remoteMcpServerSchema,
@@ -26,6 +25,9 @@ import type {
   RemoteMcpToolInvokeResult
 } from "@mcp-switch/schemas";
 import { z } from "zod";
+import { UpstreamRuntimeManager } from "./upstream-runtime.js";
+import { appHtmlFromContents, diagnoseMcpApps, isLinkedAppResource } from "./app-diagnostics.js";
+import { MCP_APP_MIME_TYPE, normalizeAppMimeType } from "./proxy-metadata.js";
 
 const remoteMcpServerConfigSchema = z.object({
   id: z.string().trim().min(1),
@@ -53,7 +55,7 @@ const remoteMcpServerConfigSchema = z.object({
   oauthRedirectUri: z.string().optional()
 });
 
-type RemoteMcpServerConfig = z.infer<typeof remoteMcpServerConfigSchema>;
+export type RemoteMcpServerConfig = z.infer<typeof remoteMcpServerConfigSchema>;
 
 /** Persist a partial OAuth-state patch for a DB-managed server; returns false for env-defined servers. */
 export type PersistRemoteOauth = (
@@ -177,6 +179,21 @@ function summarizeTool(tool: Record<string, unknown>, serverId: string) {
         : false,
     requiredArguments,
     inputSchema,
+    outputSchema:
+      tool.outputSchema && typeof tool.outputSchema === "object"
+        ? (tool.outputSchema as Record<string, unknown>)
+        : null,
+    annotations:
+      tool.annotations && typeof tool.annotations === "object"
+        ? (tool.annotations as Record<string, unknown>)
+        : null,
+    icons: Array.isArray(tool.icons)
+      ? tool.icons.filter((icon): icon is Record<string, unknown> => Boolean(icon) && typeof icon === "object")
+      : null,
+    execution:
+      tool.execution && typeof tool.execution === "object"
+        ? (tool.execution as Record<string, unknown>)
+        : null,
     meta
   });
 }
@@ -207,67 +224,6 @@ function buildPreview(value: unknown) {
     return JSON.stringify(value, null, 2).slice(0, 400);
   } catch {
     return String(value).slice(0, 400);
-  }
-}
-
-function buildRequestHeaders(
-  config: RemoteMcpServerConfig,
-  envSource: NodeJS.ProcessEnv
-) {
-  const headers: Record<string, string> = {
-    ...(config.headers ?? {})
-  };
-
-  if (config.bearerToken) {
-    // Raw token stored in DB (console-added servers).
-    headers.Authorization = `Bearer ${config.bearerToken}`;
-  } else if (config.bearerTokenEnv) {
-    const token = envSource[config.bearerTokenEnv];
-    if (!token) {
-      throw new Error(`Missing bearer token env: ${config.bearerTokenEnv}`);
-    }
-    headers.Authorization = `Bearer ${token}`;
-  }
-
-  return headers;
-}
-
-async function withRemoteClient<T>(
-  config: RemoteMcpServerConfig,
-  envSource: NodeJS.ProcessEnv,
-  callback: (client: Client) => Promise<T>,
-  authProvider?: OAuthClientProvider
-) {
-  const client = new Client(
-    { name: "mcp-switch-core-remote-mcp", version: "0.1.0" },
-    { versionNegotiation: { mode: "auto" } }
-  );
-
-  // stdio（本机托管）：拉起子进程，经 stdin/stdout 通信。每次调用 connect-per-call
-  // 与 http 路径一致——子进程随 client.close() 退出，无需常驻守护。
-  const transport = config.transport === "stdio"
-    ? new StdioClientTransport({
-        command: config.command!,
-        args: config.args ?? [],
-        // 合并默认安全环境（PATH 等）与用户配置的 env（如 MINIMAX_API_KEY）。
-        env: { ...getDefaultEnvironment(), ...(config.env ?? {}) },
-        stderr: "ignore"
-      })
-    : new StreamableHTTPClientTransport(new URL(config.url), {
-        requestInit: {
-          headers: buildRequestHeaders(config, envSource)
-        },
-        // With a provider the SDK attaches the access token and auto-refreshes on
-        // 401; a demanded interactive re-authorize surfaces as our
-        // RemoteAuthRequiredError (thrown from redirectToAuthorization).
-        ...(authProvider ? { authProvider } : {})
-      });
-
-  try {
-    await client.connect(transport);
-    return await callback(client);
-  } finally {
-    await client.close();
   }
 }
 
@@ -304,6 +260,15 @@ export function createRemoteMcpRegistry(options: {
   // on a plain server would kick off DCR on any stray 401).
   const providerFor = (config: RemoteMcpServerConfig) =>
     hasOauthConfig(config) ? makeOauthProvider(config, persist) : undefined;
+  const runtime = new UpstreamRuntimeManager({
+    envSource: options.envSource,
+    catalogCacheTtlMs: cacheTtlMs,
+    onCatalogChanged: (serverId) => cache.delete(serverId)
+  });
+  const withRemoteClient = <T>(
+    config: RemoteMcpServerConfig,
+    callback: (client: Client) => Promise<T>
+  ) => runtime.withClient(config, providerFor(config), callback);
 
   const isAuthDemand = (error: unknown) =>
     error instanceof RemoteAuthRequiredError ||
@@ -330,16 +295,17 @@ export function createRemoteMcpRegistry(options: {
 
     try {
       const { tools: rawTools, resources: rawResources } = await withRemoteClient(
-        config, options.envSource, async (client) => {
-          const t = await client.listTools();
+        config, async (client) => {
+          const cacheMode = force ? "refresh" as const : "use" as const;
+          const t = await client.listTools(undefined, { cacheMode });
           // Resources are optional (MCP Apps widgets); a server may not support them.
           let r: { resources?: unknown[] } = {};
           const caps = client.getServerCapabilities();
           if (caps?.resources) {
-            try { r = await client.listResources(); } catch { /* best-effort */ }
+            try { r = await client.listResources(undefined, { cacheMode }); } catch { /* best-effort */ }
           }
           return { tools: t.tools, resources: r.resources ?? [] };
-        }, providerFor(config)
+        }
       );
 
       const tools = rawTools.map((tool: Record<string, unknown>) =>
@@ -437,9 +403,53 @@ export function createRemoteMcpRegistry(options: {
     return summary.tools;
   }
 
+  async function readResource(serverId: string, uri: string): Promise<RemoteMcpResourceContents> {
+    const config = resolveServer(serverId);
+    const result = await withRemoteClient(config, async (client) =>
+      client.readResource({ uri })
+    );
+    const contents = Array.isArray(result.contents) ? result.contents : [];
+    return remoteMcpResourceContentsSchema.parse({
+      contents: contents.map((c: Record<string, unknown>) => ({
+        uri: typeof c.uri === "string" ? c.uri : uri,
+        mimeType: typeof c.mimeType === "string" ? c.mimeType : null,
+        text: typeof c.text === "string" ? c.text : null,
+        blob: typeof c.blob === "string" ? c.blob : null,
+        meta: (c._meta && typeof c._meta === "object") ? (c._meta as Record<string, unknown>) : null
+      }))
+    });
+  }
+
+  async function diagnoseApps(serverId: string) {
+    const config = resolveServer(serverId);
+    const summary = await loadServerSummary(config);
+    return diagnoseMcpApps(summary, (uri) => readResource(serverId, uri));
+  }
+
+  async function readAppPreview(serverId: string, uri: string) {
+    const config = resolveServer(serverId);
+    const summary = await loadServerSummary(config);
+    const resource = (summary.resources ?? []).find((item) => item.uri === uri);
+    if (!resource || !summary.tools.some((tool) => isLinkedAppResource(tool, resource))) {
+      throw new Error(`Resource ${uri} is not linked from an MCP Apps tool on server ${serverId}.`);
+    }
+    const content = appHtmlFromContents(await readResource(serverId, uri), uri);
+    const mimeType = normalizeAppMimeType(content.mimeType ?? resource.mimeType, true);
+    if (mimeType !== MCP_APP_MIME_TYPE) {
+      throw new Error(`Resource ${uri} is not an HTML MCP Apps component.`);
+    }
+    return {
+      uri,
+      mimeType,
+      html: content.html
+    };
+  }
+
   return {
     listServers,
     listTools,
+    diagnoseApps,
+    readAppPreview,
 
     /**
      * Begin the OAuth authorize flow (discovery → DCR if no pre-registered
@@ -463,6 +473,7 @@ export function createRemoteMcpRegistry(options: {
       if (result === "AUTHORIZED") {
         persist(serverId, { state: null, codeVerifier: null });
         cache.delete(serverId);
+        await runtime.invalidate(serverId);
         return { status: "authorized" };
       }
       if (!authorizeUrl) throw new Error("Authorization URL was not produced by the OAuth flow.");
@@ -485,6 +496,7 @@ export function createRemoteMcpRegistry(options: {
       if (result !== "AUTHORIZED") throw new Error("OAuth token exchange did not complete.");
       persist(serverId, { state: null, codeVerifier: null });
       cache.delete(serverId);
+      await runtime.invalidate(serverId);
     },
 
     async invokeTool(
@@ -494,7 +506,7 @@ export function createRemoteMcpRegistry(options: {
     ): Promise<RemoteMcpToolInvokeResult> {
       const payload = remoteMcpToolInvokeInputSchema.parse(input);
       const config = resolveServer(serverId);
-      const tools = await listTools(serverId, true);
+      const tools = await listTools(serverId);
       const tool = tools.find((item: RemoteMcpTool) => item.name === toolName);
 
       if (!tool) {
@@ -512,13 +524,11 @@ export function createRemoteMcpRegistry(options: {
       try {
         const result = await withRemoteClient(
           config,
-          options.envSource,
           async (client) =>
             client.callTool({
               name: toolName,
               arguments: payload.arguments
-            }),
-          providerFor(config)
+            }, { toolDefinition: tool as unknown as Tool })
         );
 
         const contentText =
@@ -576,14 +586,17 @@ export function createRemoteMcpRegistry(options: {
     ): Promise<{ content: unknown[]; structuredContent: unknown; isError: boolean; meta?: unknown }> {
       const payload = remoteMcpToolInvokeInputSchema.parse(input);
       const config = resolveServer(serverId);
-      const tools = await listTools(serverId, true);
+      const tools = await listTools(serverId);
       const tool = tools.find((item: RemoteMcpTool) => item.name === toolName);
       if (!tool) throw new Error(`Remote MCP tool not found: ${toolName}`);
       if (!tool.readOnlyHint && !payload.allowWrite) {
         throw new Error(`Tool ${toolName} is not marked read-only. Set allowWrite=true to run it.`);
       }
-      const result = await withRemoteClient(config, options.envSource, async (client) =>
-        client.callTool({ name: toolName, arguments: payload.arguments }), providerFor(config)
+      const result = await withRemoteClient(config, async (client) =>
+        client.callTool(
+          { name: toolName, arguments: payload.arguments },
+          { toolDefinition: tool as unknown as Tool }
+        )
       );
       return {
         content: "content" in result && Array.isArray(result.content) ? result.content : [],
@@ -595,22 +608,7 @@ export function createRemoteMcpRegistry(options: {
     },
 
     /** Read a UI/template resource from a remote server (MCP Apps widget passthrough). */
-    async readResource(serverId: string, uri: string): Promise<RemoteMcpResourceContents> {
-      const config = resolveServer(serverId);
-      const result = await withRemoteClient(config, options.envSource, async (client) =>
-        client.readResource({ uri }), providerFor(config)
-      );
-      const contents = Array.isArray(result.contents) ? result.contents : [];
-      return remoteMcpResourceContentsSchema.parse({
-        contents: contents.map((c: Record<string, unknown>) => ({
-          uri: typeof c.uri === "string" ? c.uri : uri,
-          mimeType: typeof c.mimeType === "string" ? c.mimeType : null,
-          text: typeof c.text === "string" ? c.text : null,
-          blob: typeof c.blob === "string" ? c.blob : null,
-          meta: (c._meta && typeof c._meta === "object") ? (c._meta as Record<string, unknown>) : null
-        }))
-      });
-    },
+    readResource,
 
     async toConnectors(force = false): Promise<Connector[]> {
       const servers = await listServers(force);
@@ -631,7 +629,15 @@ export function createRemoteMcpRegistry(options: {
           exposureLevel: "private-operational"
         })
       );
-    }
+    },
+
+    async invalidateServer(serverId: string): Promise<void> {
+      cache.delete(serverId);
+      await runtime.invalidate(serverId);
+    },
+
+    diagnostics: () => runtime.diagnostics(),
+    close: () => runtime.close()
   };
 }
 

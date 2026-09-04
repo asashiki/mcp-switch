@@ -92,6 +92,54 @@ export interface RemoteServer {
   tools: RemoteTool[];
 }
 
+export type AppDiagnosticSeverity = "pass" | "info" | "warning" | "error";
+
+export interface AppDiagnosticCheck {
+  severity: AppDiagnosticSeverity;
+  code: string;
+  message: string;
+  toolName?: string | null;
+  resourceUri?: string | null;
+}
+
+export interface AppComponentDiagnostic {
+  toolName: string;
+  toolTitle: string | null;
+  upstreamUri: string;
+  proxyUri: string;
+  resourceFound: boolean;
+  mimeType: string | null;
+  normalizedMimeType: string | null;
+  bridge: "mcp-apps" | "openai-only" | "static-or-unknown" | "unreadable";
+  htmlBytes: number | null;
+  dedicatedDomain: string | null;
+  csp: {
+    connectDomains: string[];
+    resourceDomains: string[];
+    frameDomains: string[];
+  };
+  hasOutputSchema: boolean;
+  sampleStructuredContent: unknown | null;
+  checks: AppDiagnosticCheck[];
+}
+
+export interface AppDiagnostics {
+  serverId: string;
+  generatedAt: string;
+  status: "none" | "pass" | "warning" | "error";
+  uiToolCount: number;
+  appResourceCount: number;
+  namespaceIsolation: boolean;
+  components: AppComponentDiagnostic[];
+  checks: AppDiagnosticCheck[];
+}
+
+export interface AppPreview {
+  uri: string;
+  mimeType: string;
+  html: string;
+}
+
 // =============================================================================
 // 控制台前端特有的扩展类型（需要后端补端点 — 详见 BACKEND_TODOS.md）
 // =============================================================================

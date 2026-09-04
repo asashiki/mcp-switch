@@ -2,11 +2,7 @@
 
 # MCP Switch
 
-**1 つの MCP エンドポイントで、ローカルとリモートのすべての MCP を集約。**
-
-セルフホスト型のゲートウェイ。ローカルとリモートの MCP サーバーを、
-OAuth で保護された 1 つのエンドポイントに集約し、MCP機能を搭載したあらゆるAI
-（claude.ai、ChatGPT など）へ公開します。
+**ローカルとリモートの MCP を、1 つのセルフホスト型エンドポイントへ。**
 
 ![license](https://img.shields.io/badge/license-MIT-e96ba8)
 ![node](https://img.shields.io/badge/node-%E2%89%A524-3c873a)
@@ -37,6 +33,7 @@ MCP Switch はその間に入ります：
 - 任意の数の MCP——リモート（URL）でもローカル（stdio、自分のマシンでホスト）でも——を 1 つのエンドポイントに**集約**。
 - **一度つなぐだけ。** AI には 1 つのコネクタだけが見え、その背後にすべてのツールがあります。
 - **コンソールで管理**——サーバー追加、ツールのグループ化、agent ごとの表示範囲、監査ログ。
+- **WebMCP コントロール。** 対応ブラウザーのエージェントは、匿名化された状態の確認、App Lab の表示、レビュー用接続ドラフトの作成ができます。
 - **純粋な中継。** MCP Switch 自体はツールを持たず、ツール・スキーマ・結果、さらに MCP Apps の UI ウィジェットまでそのまま転送します。
 
 ## アーキテクチャ
@@ -67,7 +64,7 @@ docker compose -f infra/docker/compose.yaml --env-file .env up -d --build
 - ヘルスチェック：`curl http://127.0.0.1:4577/health`
 - コンソール：`http://127.0.0.1:4577/console` を開く（先にパスワード設定。下記参照）
 
-> リバースプロキシ越し？ `.env` で `MCP_PUBLIC_URL` と `MCP_GATEWAY_BIND_HOST=0.0.0.0` を設定。
+> 同じ VPS のリバースプロキシを使う場合は `MCP_PUBLIC_URL` だけを設定し、ホスト側ポートは `127.0.0.1` のままにします。
 
 ### コンソールのパスワード設定
 
@@ -129,14 +126,21 @@ OAuth ログインを完了（同意画面で agent ID を選択）。集約さ�
 | 変数 | 用途 |
 |---|---|
 | `MCP_PUBLIC_URL` | 公開 origin。**設定すると OAuth + コンソールが有効**、空 = 匿名ローカル `/mcp` |
-| `MCP_AUTH_DB_PATH` | SQLite ファイル（agents・OAuth・監査・スキル・サーバーレジストリ） |
+| `MCP_AUTH_DB_PATH` | ローカル開発用 SQLite パス。Docker は `/data` volume を使用 |
 | `MCP_OAUTH_SCOPE` | クライアントへ広告する OAuth スコープ |
+| `MCP_OAUTH_ALLOW_LEGACY_RESOURCE_OMISSION` | 旧クライアント用の移行スイッチ。再認可後に無効化 |
+| `MCP_ALLOWED_HOSTS` / `MCP_ALLOWED_ORIGINS` | 任意のトランスポート許可リスト。空なら公開 URL から推測 |
 | `REMOTE_MCP_SERVERS_JSON` | 任意：上流サーバーを事前登録（コンソール追加の代わり） |
-| `MCP_GATEWAY_BIND_HOST` | リバースプロキシ越しなら `0.0.0.0` |
+| `MCP_GATEWAY_HOST` | ローカル開発の listen アドレス。Docker ではコンテナ内の値を安全に上書き |
+| `MCP_GATEWAY_BIND_HOST` | ホスト側の公開アドレス。同一 VPS のプロキシなら既定の `127.0.0.1` |
 
 ## ドキュメント
 
-- 📖 [使用マニュアル](docs/manual.md) —— コンソールの手順解説。
+- [VPS デプロイ引き継ぎ](docs/VPS-DEPLOY.zh-CN.md) —— サーバー側の AI にそのまま渡せる短い手順。
+- [使用マニュアル](docs/manual.md) —— コンソールの操作方法。
+- [安全な更新とロールバック](docs/deployment-and-upgrade.zh-CN.md)。
+- [MCP Apps App Lab](docs/mcp-apps-app-lab.zh-CN.md)。
+- [WebMCP コントロールプレーン](docs/webmcp-control-plane.zh-CN.md)。
 
 ## 開発
 
