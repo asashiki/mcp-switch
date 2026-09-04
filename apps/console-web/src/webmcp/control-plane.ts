@@ -6,7 +6,6 @@ import type {
   Skill,
 } from "@/types/api";
 
-export const WEBMCP_TOOL_COUNT = 5;
 export const WEBMCP_DRAFT_KEY = "mcp-switch.webmcp.remote-draft";
 export const WEBMCP_DRAFT_EVENT = "mcp-switch:webmcp-remote-draft";
 export const WEBMCP_DIAGNOSTICS_KEY = "mcp-switch.webmcp.app-diagnostics";

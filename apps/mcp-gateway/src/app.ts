@@ -55,7 +55,10 @@ export function loadMcpGatewayEnv(source: NodeJS.ProcessEnv): McpGatewayEnv {
   const normalizedSource: NodeJS.ProcessEnv = {
     ...source,
     HOST: source.MCP_GATEWAY_HOST ?? source.HOST,
-    PORT: source.MCP_GATEWAY_PORT ?? source.PORT
+    PORT: source.MCP_GATEWAY_PORT ?? source.PORT,
+    // Docker Compose represents an intentionally unset optional value as an
+    // empty string. Normalize it before the URL schema runs.
+    MCP_PUBLIC_URL: source.MCP_PUBLIC_URL?.trim() || undefined,
   };
 
   return mcpGatewayEnvSchema.parse(

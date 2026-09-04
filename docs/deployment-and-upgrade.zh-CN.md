@@ -45,7 +45,14 @@ docker compose -f infra/docker/compose.yaml exec mcp-switch \
 - 独立测试子域名与反向代理路由；
 - 新建的测试 agent/client，不复用生产 access token。
 
-示例 `.env.canary`：
+先复制仓库提供的模板：
+
+```bash
+cp .env.vps.example .env.next
+chmod 600 .env.next
+```
+
+示例 `.env.next`：
 
 ```dotenv
 MCP_PUBLIC_URL=https://mcp-canary.example.com
@@ -55,7 +62,7 @@ MCP_OAUTH_ALLOW_LEGACY_RESOURCE_OMISSION=true
 ```
 
 ```bash
-docker compose -f infra/docker/compose.yaml --env-file .env.canary \
+docker compose -f infra/docker/compose.yaml --env-file .env.next \
   -p mcp-switch-canary up -d --build
 ```
 

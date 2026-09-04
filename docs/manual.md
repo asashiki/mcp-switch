@@ -66,7 +66,7 @@ docker compose -f infra/docker/compose.yaml --env-file .env up -d --build
 curl http://127.0.0.1:4577/health
 ```
 
-> 反代后部署：`.env` 里设 `MCP_PUBLIC_URL=https://mcp.example.com` 和 `MCP_GATEWAY_BIND_HOST=0.0.0.0`，反代把 `/mcp`、`/console`、`/api/console/*`、OAuth 端点转发到容器 `:4577`。
+> 同机反代：`.env` 里设置 `MCP_PUBLIC_URL=https://mcp.example.com`，宿主端口继续绑定 `127.0.0.1`；反代把 `/mcp`、`/console`、`/api/console/*` 和 OAuth 端点转发到宿主机 `:4577`。
 
 ### 本地试玩（不用 OAuth）
 

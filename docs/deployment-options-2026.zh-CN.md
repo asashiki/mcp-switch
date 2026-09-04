@@ -63,7 +63,7 @@ chmod 600 infra/docker/.secrets/cloudflare-tunnel-token.txt
 5. 创建 canary 环境文件并换成真实测试域名：
 
 ```bash
-cp .env.canary.example .env.canary
+cp .env.vps.example .env.canary
 ```
 
 6. 启动独立 project：

@@ -90,7 +90,6 @@ export default function RemotePage() {
         bearerToken: "",
         headers: "",
       });
-      setMsg(t("webmcp.draftApplied"));
       requestAnimationFrame(() => document.getElementById("remote-add-form")?.scrollIntoView({ behavior: "smooth", block: "start" }));
     };
 
@@ -384,7 +383,6 @@ export default function RemotePage() {
 
         {webMcpDraft && (
           <div className="webmcp-draft-note">
-            <span className="webmcp-mark" aria-hidden="true">AI</span>
             <div>
               <strong>{t("webmcp.draftTitle")}</strong>
               <p>{t("webmcp.draftNote")}</p>

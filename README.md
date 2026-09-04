@@ -4,17 +4,13 @@
 
 # MCP Switch
 
-**One MCP endpoint to rule them all.**
-
-Web- or app-based AIs are limited to remote MCP servers and typically offer only a single custom connector slot. In contrast, half of the most useful MCP servers run locally via standard I/O (like npx or uvx), making them accessible only to Claude Desktop or CLI tools.
+**One self-hosted endpoint for local and remote MCP servers.**
 
 ![license](https://img.shields.io/badge/license-MIT-e96ba8)
 ![node](https://img.shields.io/badge/node-%E2%89%A524-3c873a)
 ![status](https://img.shields.io/badge/status-beta-8b8bef)
 
 **English** · [简体中文](README.zh-CN.md) · [日本語](README.ja.md)
-
-🏁 **WebMCP Challenge 2026:** [open the public interactive demo](https://mcp-switch-webmcp-review.asashiki-5352.chatgpt.site) · [see the exact demo source](apps/webmcp-challenge-demo) · [read the submission brief](docs/challenge/DEVPOST-SUBMISSION.md)
 
 🔗 **[Original console demo](https://show.asashiki.com/console/)** · 📖 **[User manual](docs/manual.md)**
 
@@ -76,7 +72,7 @@ Then:
 - Health: `curl http://127.0.0.1:4577/health`
 - Console: open `http://127.0.0.1:4577/console` (set a password first — see below)
 
-> Behind a reverse proxy? Set `MCP_PUBLIC_URL` and `MCP_GATEWAY_BIND_HOST=0.0.0.0` in `.env`.
+> Behind a reverse proxy on the same VPS? Set `MCP_PUBLIC_URL`; keep the host-side port bound to `127.0.0.1`.
 
 ### Set the console password
 
@@ -143,24 +139,24 @@ All via `.env` (see [`.env.example`](.env.example)):
 | Variable | Purpose |
 |---|---|
 | `MCP_PUBLIC_URL` | Public origin; **set it to enable OAuth + console**, unset = anonymous local `/mcp` |
-| `MCP_AUTH_DB_PATH` | SQLite file (agents, OAuth, audit, skills, server registry) |
+| `MCP_AUTH_DB_PATH` | Local-development SQLite path; Docker always uses its `/data` volume |
 | `MCP_OAUTH_SCOPE` | OAuth scopes advertised to clients |
 | `MCP_OAUTH_ALLOW_LEGACY_RESOURCE_OMISSION` | Upgrade bridge for old clients that omit RFC 8707 `resource`; turn off after re-authorization |
 | `MCP_CONSOLE_CORS_ORIGINS` | Comma-separated list of allowed console SPA origins (default: `http://localhost:5173,http://localhost:3000`) |
 | `MCP_ALLOWED_HOSTS` / `MCP_ALLOWED_ORIGINS` | Optional MCP transport allowlists; safe values are derived from the public URL when empty |
 | `REMOTE_MCP_SERVERS_JSON` | Optional: pre-seed upstream servers instead of using the console |
-| `MCP_GATEWAY_BIND_HOST` | Bind `0.0.0.0` when running behind a reverse proxy |
+| `MCP_GATEWAY_HOST` | Local-development listen address; Docker overrides it safely inside the container |
+| `MCP_GATEWAY_BIND_HOST` | Host-side published address; defaults to `127.0.0.1` for a same-VPS reverse proxy |
 
 ## Docs
 
-- 📖 [使用手册](docs/manual.md) — step-by-step walkthrough of the console.
-- 🛟 [安全升级与回滚](docs/deployment-and-upgrade.zh-CN.md) — test locally, run a parallel VPS canary, then migrate without touching the live instance.
-- 🌐 [2026 部署与远程测试选择](docs/deployment-options-2026.zh-CN.md) — local, Cloudflare Tunnel/Containers/Workers, Cloud Run and free VM trade-offs.
-- 🧩 [MCP Apps App Lab](docs/mcp-apps-app-lab.zh-CN.md) — diagnose cross-host component metadata, MIME, CSP and bridge behavior.
-- 🤝 [WebMCP Control Plane](docs/webmcp-control-plane.zh-CN.md) — five safe Site tools for shared inspection, App Lab navigation and review-only connection drafts.
-- 🎬 [WebMCP demo brief](docs/challenge/WEBMCP-DEMO.md) — new-work summary, sub-three-minute demo flow and screenshot checklist.
-- 🏁 [WebMCP Challenge submission](docs/challenge/DEVPOST-SUBMISSION.md) — English project copy, judging instructions, source links and challenge-work evidence.
-- 🎙️ [One-take recording script](docs/challenge/RECORDING-SCRIPT.md) — exact prompts, narration and timing for the required public video.
+- [VPS deployment handoff](docs/VPS-DEPLOY.zh-CN.md) — short instructions that can be handed directly to an AI on the server.
+- [使用手册](docs/manual.md) — step-by-step walkthrough of the console.
+- [安全升级与回滚](docs/deployment-and-upgrade.zh-CN.md) — run a parallel instance before switching traffic.
+- [2026 部署与远程测试选择](docs/deployment-options-2026.zh-CN.md) — current platform trade-offs.
+- [MCP Apps App Lab](docs/mcp-apps-app-lab.zh-CN.md) — diagnose component metadata, MIME, CSP and bridge behavior.
+- [WebMCP Control Plane](docs/webmcp-control-plane.zh-CN.md) — safe inspection, App Lab navigation and review-only connection drafts.
+- [文章资料包](docs/blog/MCP-SWITCH-ARTICLE-KIT.zh-CN.md) and [first-person draft](docs/blog/MCP-SWITCH-ARTICLE-DRAFT.zh-CN.md).
 
 ## Development
 

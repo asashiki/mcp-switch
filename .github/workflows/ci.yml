@@ -29,6 +29,12 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Validate Docker Compose
+        run: |
+          docker compose --env-file .env.example -f infra/docker/compose.yaml config --format json > /tmp/mcp-switch-compose.json
+          jq -e '.services["mcp-switch"].environment.MCP_GATEWAY_HOST == "0.0.0.0"' /tmp/mcp-switch-compose.json
+          jq -e '.services["mcp-switch"].environment.MCP_AUTH_DB_PATH == "/data/mcp-switch.sqlite"' /tmp/mcp-switch-compose.json
+          docker compose -p mcp-switch-next --env-file .env.vps.example -f infra/docker/compose.yaml config --quiet
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm build

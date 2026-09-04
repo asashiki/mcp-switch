@@ -21,9 +21,13 @@ services:
     cpus: ${MCP_CONTAINER_CPU_LIMIT:-2.0}
     environment:
       NODE_ENV: ${NODE_ENV:-production}
-      MCP_GATEWAY_HOST: ${MCP_GATEWAY_HOST:-0.0.0.0}
+      # Always listen on the container interface. Host exposure is controlled
+      # separately by MCP_GATEWAY_BIND_HOST in the ports mapping below.
+      MCP_GATEWAY_HOST: 0.0.0.0
       MCP_GATEWAY_PORT: ${MCP_GATEWAY_PORT:-4577}
-      MCP_AUTH_DB_PATH: ${MCP_AUTH_DB_PATH:-/data/mcp-switch.sqlite}
+      # The runtime filesystem is read-only; persistent state belongs in the
+      # volume mounted at /data. MCP_AUTH_DB_PATH in .env is for local dev.
+      MCP_AUTH_DB_PATH: /data/mcp-switch.sqlite
       # Public base URL (e.g. https://mcp.example.com). When set, the gateway
       # enables OAuth 2.1 + the management console; unset → anonymous /mcp.
       MCP_PUBLIC_URL: ${MCP_PUBLIC_URL:-}

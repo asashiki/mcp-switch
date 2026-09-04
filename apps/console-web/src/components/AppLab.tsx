@@ -147,11 +147,7 @@ export default function AppLab({ serverName, diagnostics }: {
   return (
     <section className="app-lab">
       <div className="app-lab-head">
-        <div>
-          <div className="app-lab-eyebrow">MCP APPS · APP LAB</div>
-          <h4>{serverName}</h4>
-          <p>{t("appLab.subtitle")}</p>
-        </div>
+        <h4>{t("appLab.title", { server: serverName })}</h4>
         <div className="app-lab-summary">
           <span className={`tag ${statusClass}`}>{t(`appLab.status.${diagnostics.status}`)}</span>
           <span>{t("appLab.uiTools", { n: diagnostics.uiToolCount })}</span>
@@ -181,9 +177,9 @@ export default function AppLab({ serverName, diagnostics }: {
                 <div><span>{t("appLab.size")}</span><strong>{prettyBytes(selected.htmlBytes)}</strong></div>
                 <div><span>{t("appLab.output")}</span><strong>{selected.hasOutputSchema ? "outputSchema ✓" : "—"}</strong></div>
               </div>
-              <div className="app-lab-uri"><span>upstream</span><code>{selected.upstreamUri}</code></div>
-              <div className="app-lab-uri"><span>switch</span><code>{selected.proxyUri}</code></div>
-              {selected.dedicatedDomain && <div className="app-lab-uri"><span>domain</span><code>{selected.dedicatedDomain}</code></div>}
+              <div className="app-lab-uri"><span>{t("appLab.upstreamResource")}</span><code>{selected.upstreamUri}</code></div>
+              <div className="app-lab-uri"><span>{t("appLab.proxyResource")}</span><code>{selected.proxyUri}</code></div>
+              {selected.dedicatedDomain && <div className="app-lab-uri"><span>{t("appLab.domain")}</span><code>{selected.dedicatedDomain}</code></div>}
 
               <div className="app-checks">
                 {selected.checks.map((check, index) => (

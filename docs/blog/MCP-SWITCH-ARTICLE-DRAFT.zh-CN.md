@@ -14,7 +14,7 @@ MCP Switch 最初只是想把这些服务器合成一个 URL。客户端只连�
 
 网关会比普通 MCP Server 更早撞上兼容问题。下游可能已经是新版 ChatGPT，上游却还是几个月没更新的 stdio 工具。让所有东西同一天升级不现实。
 
-现在的 Switch 会在同一个 `/mcp` 端点同时处理 2026 与旧版客户端；连接上游时也会自动协商。我的 VPS 旧版没有被覆盖，升级代码一直放在独立 Draft PR 里。
+现在的 Switch 会在同一个 `/mcp` 端点同时处理 2026 与旧版客户端；连接上游时也会自动协商。部署时我也不准备覆盖 VPS 上的旧版，新版先用另一个端口、域名和数据库跑在旁边。
 
 顺便还修掉了一个很蠢、也很隐蔽的 bug：环境变量 `MCP_OAUTH_ALLOW_LEGACY_RESOURCE_OMISSION` 被解析了两次。测试里传普通对象没问题，真实启动读取 `process.env` 时反而会失败。难怪之前配置怎么都不成功。现在真实构建启动也进了回归测试。
 
@@ -50,7 +50,7 @@ MCP Apps 是 MCP Server 返回到聊天里的组件，比如播放器、图表�
 
 WebMCP 是网页自己的工具。人打开 Switch 控制台以后，AI 可以和人共享这个页面、这个登录态，以及页面上当前选中的服务器。
 
-我没有把三十多个上游工具再注册一遍。PR #6 只加了五个控制面工具：读网关总览、列上游、查一个服务器、打开 App Lab、准备远程 MCP 草稿。
+我没有把三十多个上游工具再注册一遍。控制台只加了五个 WebMCP 工具：读网关总览、列上游、查一个服务器、打开 App Lab、准备远程 MCP 草稿。
 
 前三个只读。打开 App Lab 只改变当前页面。准备接入也只会填写名称、HTTP(S) URL 和说明，不接受 Token、Secret、Header、env 或 stdio command。保存、连接、OAuth 授权和删除仍然要我自己点击。
 
@@ -58,17 +58,13 @@ WebMCP 是网页自己的工具。人打开 Switch 控制台以后，AI 可以�
 
 ## 怎么试
 
-为了先看界面和截图，我把控制台与 WebMCP 流程放到了一个私有评审站：
+最后我还是准备在原来的 VPS 上并行跑新版。完整网关需要常驻 Node、SQLite 和可选的 stdio 子进程，这些本来就是一台普通服务器擅长的事。
 
-<https://mcp-switch-webmcp-review.asashiki-5352.chatgpt.site>
-
-这个站可以看总览、Music MCP App Lab、组件预览和待审草稿，也会在支持 WebMCP 的 ChatGPT 内置浏览器里注册五个 Site tools。它使用演示数据，不会连接或修改我的 VPS。
-
-完整网关仍然需要本地 Docker 或 VPS。官方 Sites 跑在 Cloudflare Workers 上，不能原样承载常驻 Node、原生 SQLite 和任意 stdio 子进程。真要不碰 VPS 地测试，我会在本地启动独立 canary，再用 named Cloudflare Tunnel 暂时暴露一个 HTTPS 域名。
+旧版继续占原来的端口和域名。新版使用独立的 Compose project、`4578`、新子域名和新数据卷。先跑健康检查和只读协议检查，再让 ChatGPT 只连接新版。失败了就停掉新版容器，旧版不用动。
 
 ## 现在是什么状态
 
-协议协商的 PR #3 已经合并。完整网关升级放在 Draft PR #4；WebMCP 控制面单独放在 Draft PR #6，而且叠加在 #4 上。#6 目前 42 个测试通过，GitHub Actions 也已经转绿。
+自动化现在有 42 个测试：9 个覆盖 WebMCP 的注册、脱敏、页面联动和草稿边界，另外 33 个覆盖网关、OAuth、存储、远程检查与 App Lab。CI 还会跑类型检查、生产构建和 Docker Compose 配置检查。
 
 还有东西没做完：prompts、resource templates、completion 以及 sampling、elicitation、tasks 这些双向能力没有全部代理；OpenTelemetry 和更完整的兼容矩阵也在后面。Music 播放器还欠一次真正的 ChatGPT 桌面端播放录像。
 
@@ -80,5 +76,5 @@ MCP 以后还能不能重新热起来，我不知道。MCP Switch 已经超过�
 - [MCP Roadmap](https://modelcontextprotocol.io/development/roadmap)
 - [OpenAI Site tools / WebMCP](https://learn.chatgpt.com/docs/webmcp)
 - [OpenAI MCP Apps UI guide](https://developers.openai.com/plugins/build/chatgpt-ui)
-- [mcp-switch PR #4](https://github.com/asashiki/mcp-switch/pull/4)
-- [mcp-switch PR #6](https://github.com/asashiki/mcp-switch/pull/6)
+- [mcp-switch 源码](https://github.com/asashiki/mcp-switch)
+- [VPS 部署交接单](../VPS-DEPLOY.zh-CN.md)

@@ -22,6 +22,12 @@ test("gateway loads a real process-env shaped OAuth compatibility flag once", ()
 
   const defaulted = loadMcpGatewayEnv({ NODE_ENV: "test" });
   assert.equal(defaulted.MCP_OAUTH_ALLOW_LEGACY_RESOURCE_OMISSION, true);
+
+  const anonymous = loadMcpGatewayEnv({
+    NODE_ENV: "test",
+    MCP_PUBLIC_URL: "",
+  });
+  assert.equal(anonymous.MCP_PUBLIC_URL, undefined);
 });
 
 // MCP Switch ships no built-in tools — it re-exposes upstream tools as
