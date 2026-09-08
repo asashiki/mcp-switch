@@ -183,6 +183,8 @@ function diagnosticSummary(diagnostics: AppDiagnostics) {
     }));
   return {
     serverId: diagnostics.serverId,
+    validationScope: "static",
+    runtimeVerified: false,
     status: diagnostics.status,
     uiToolCount: diagnostics.uiToolCount,
     appResourceCount: diagnostics.appResourceCount,

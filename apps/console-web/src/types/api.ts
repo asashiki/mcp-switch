@@ -124,6 +124,8 @@ export interface AppComponentDiagnostic {
 }
 
 export interface AppDiagnostics {
+  validationScope?: "static";
+  runtimeVerified?: false;
   serverId: string;
   generatedAt: string;
   status: "none" | "pass" | "warning" | "error";

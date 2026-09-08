@@ -230,7 +230,7 @@ export async function diagnoseMcpApps(
         const openAiBridge = /window\.openai|openai:set_globals/.test(content.html);
         bridge = standardBridge ? "mcp-apps" : openAiBridge ? "openai-only" : "static-or-unknown";
         if (standardBridge) {
-          add({ severity: "pass", code: "bridge-standard", message: "HTML contains the portable MCP Apps ui/* bridge." });
+          add({ severity: "pass", code: "bridge-standard", message: "MCP Apps bridge markers found in HTML; initialization and interaction have not been executed." });
         } else if (openAiBridge) {
           add({ severity: "warning", code: "bridge-openai-only", message: "HTML appears to depend on window.openai without the portable ui/* bridge." });
         } else {
@@ -308,6 +308,11 @@ export async function diagnoseMcpApps(
   if (components.length === 0) {
     checks.push({ severity: "info", code: "no-app-tools", message: "No tools link an MCP Apps component." });
   } else {
+    checks.push({
+      severity: "info",
+      code: "runtime-not-verified",
+      message: "Static inspection only. Playback, repeated host notifications, resizing and target-client interaction have not been verified."
+    });
     checks.push({
       severity: "pass",
       code: "namespace-isolation",

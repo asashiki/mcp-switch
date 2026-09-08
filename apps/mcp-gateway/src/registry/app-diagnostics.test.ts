@@ -72,6 +72,9 @@ test("diagnostics recognize a portable MCP App and generate safe sample data", a
     }]
   }));
   assert.equal(result.status, "pass");
+  assert.equal(result.validationScope, "static");
+  assert.equal(result.runtimeVerified, false);
+  assert.ok(result.checks.some(check => check.code === "runtime-not-verified"));
   assert.equal(result.uiToolCount, 1);
   assert.equal(result.components[0]?.bridge, "mcp-apps");
   assert.match(result.components[0]?.proxyUri ?? "", /^ui:\/\/mcp-switch\/music\//);

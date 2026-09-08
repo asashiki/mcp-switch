@@ -152,6 +152,8 @@ test("App Lab tool updates only the visible view and returns compact diagnostics
   assert.deepEqual(focused, [["music", true]]);
   assert.equal(result.pageUpdated, true);
   assert.equal(result.diagnostics.status, "warning");
+  assert.equal(result.diagnostics.validationScope, "static");
+  assert.equal(result.diagnostics.runtimeVerified, false);
   assert.equal(result.diagnostics.problems[0].code, "missing-output-schema");
   assert.match(result.safety, /No upstream tool/);
 });
