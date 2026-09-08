@@ -172,6 +172,8 @@ export const mcpAppComponentDiagnosticSchema = z.object({
 });
 
 export const mcpAppDiagnosticsSchema = z.object({
+  validationScope: z.literal("static").default("static"),
+  runtimeVerified: z.literal(false).default(false),
   serverId: z.string().min(1),
   generatedAt: z.string().datetime(),
   status: z.enum(["none", "pass", "warning", "error"]),

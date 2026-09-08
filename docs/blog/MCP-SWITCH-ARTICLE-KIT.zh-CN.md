@@ -8,6 +8,8 @@
 
 MCP Switch 是一个自托管 MCP 网关：把本地 stdio 和远程 HTTP MCP 收进同一个 `/mcp` 入口，再统一处理新旧协议兼容、OAuth、Agent 权限、审计和 MCP Apps UI。
 
+2026-09-08 验收更新：用户在 ChatGPT 的 Music 组件遇到持续闪烁和无法点击；已在上游代码复现重复通知重建音频，并提交修复。App Lab 的“通过”现在明确为静态通过。文章应补上这次失败与修复证据，实际播放尚待 canary 验收，不要沿用“字段通过即兼容”的说法。详见 [App Lab 记录](../mcp-apps-app-lab.zh-CN.md) 和 [下一步方向](../NEXT-STEPS.zh-CN.md)。
+
 WebMCP 是新加入的控制面。它让 AI 在你已经打开控制台时读取脱敏状态、定位服务器、打开 App Lab 或准备一份接入草稿；保存、授权和删除仍由人点击确认。
 
 ## 文章最适合抓住的矛盾

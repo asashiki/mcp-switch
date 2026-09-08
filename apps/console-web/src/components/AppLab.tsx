@@ -31,7 +31,12 @@ function previewDocument(html: string, component: AppComponentDiagnostic, sample
     "form-action 'none'"
   ].join("; ");
   const injected = `<meta http-equiv="Content-Security-Policy" content="${policy.replace(/"/g, "&quot;")}">` +
-    `<script>window.openai={toolOutput:${safeJson(sample)}};</script>`;
+    `<script>window.openai={toolOutput:${safeJson(sample)}};
+window.addEventListener("message", function(event) {
+  if (event.source !== window.parent || event.data?.type !== "mcp-switch:preview-globals") return;
+  Object.assign(window.openai, event.data.globals);
+  window.dispatchEvent(new CustomEvent("openai:set_globals", {detail:{globals:event.data.globals}}));
+});</script>`;
   return /<head(?:\s[^>]*)?>/i.test(html)
     ? html.replace(/<head(?:\s[^>]*)?>/i, (head) => `${head}${injected}`)
     : `${injected}${html}`;
@@ -53,19 +58,19 @@ export default function AppLab({ serverName, diagnostics }: {
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [sampleText, setSampleText] = useState("{}");
-  const [renderSample, setRenderSample] = useState<unknown>({});
-  const [previewRevision, setPreviewRevision] = useState(0);
   const [iframeHeight, setIframeHeight] = useState(480);
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const renderSampleRef = useRef(renderSample);
+  const renderSampleRef = useRef<unknown>({});
+  const replayTimersRef = useRef<number[]>([]);
   const selectedUriRef = useRef(selected?.upstreamUri ?? null);
 
-  useEffect(() => { renderSampleRef.current = renderSample; }, [renderSample]);
   useEffect(() => {
     selectedUriRef.current = selected?.upstreamUri ?? null;
     const sample = selected?.sampleStructuredContent ?? {};
     setSampleText(JSON.stringify(sample, null, 2));
-    setRenderSample(sample);
+    renderSampleRef.current = sample;
+    replayTimersRef.current.forEach(window.clearTimeout);
+    replayTimersRef.current = [];
     setPreview(null);
     setPreviewError(null);
     setIframeHeight(480);
@@ -87,18 +92,27 @@ export default function AppLab({ serverName, diagnostics }: {
             hostContext: { locale: navigator.language, theme: document.documentElement.dataset.theme ?? "light" }
           }
         }, "*");
-        window.setTimeout(() => sendToolResult(renderSampleRef.current), 30);
+      }
+      if (message.method === "ui/notifications/initialized") {
+        sendToolResult(renderSampleRef.current);
       }
       if (message.method === "ui/notifications/size-changed") {
         const height = Number((message.params as { height?: unknown } | null)?.height);
-        if (Number.isFinite(height)) setIframeHeight(Math.min(Math.max(Math.ceil(height), 220), 760));
+        if (Number.isFinite(height)) setIframeHeight(Math.min(Math.max(Math.ceil(height), 80), 760));
       }
     };
     window.addEventListener("message", onMessage);
-    return () => window.removeEventListener("message", onMessage);
+    return () => {
+      window.removeEventListener("message", onMessage);
+      replayTimersRef.current.forEach(window.clearTimeout);
+    };
   }, []);
 
   const sendToolResult = (sample: unknown) => {
+    iframeRef.current?.contentWindow?.postMessage({
+      type: "mcp-switch:preview-globals",
+      globals: { toolOutput: sample, theme: document.documentElement.dataset.theme ?? "light" }
+    }, "*");
     iframeRef.current?.contentWindow?.postMessage({
       jsonrpc: "2.0",
       method: "ui/notifications/tool-result",
@@ -126,18 +140,26 @@ export default function AppLab({ serverName, diagnostics }: {
   const applySample = () => {
     try {
       const parsed = JSON.parse(sampleText);
-      setRenderSample(parsed);
+      renderSampleRef.current = parsed;
       setPreviewError(null);
-      setPreviewRevision((value) => value + 1);
-      window.setTimeout(() => sendToolResult(parsed), 50);
+      sendToolResult(parsed);
     } catch (error) {
       setPreviewError(error instanceof Error ? error.message : t("appLab.invalidJson"));
     }
   };
 
+  const replayHostNotifications = () => {
+    replayTimersRef.current.forEach(window.clearTimeout);
+    // Keep one iframe alive. Reloading it would hide exactly the duplicate
+    // notification / media-reset bug this control is meant to expose.
+    replayTimersRef.current = Array.from({ length: 25 }, (_, index) =>
+      window.setTimeout(() => sendToolResult(renderSampleRef.current), index * 100)
+    );
+  };
+
   const documentHtml = useMemo(
-    () => preview && selected ? previewDocument(preview.html, selected, renderSample) : "",
-    [preview, selected, renderSample, previewRevision]
+    () => preview && selected ? previewDocument(preview.html, selected, selected.sampleStructuredContent) : "",
+    [preview, selected]
   );
 
   const statusClass = diagnostics.status === "error" ? "err"
@@ -209,18 +231,18 @@ export default function AppLab({ serverName, diagnostics }: {
               {previewError && <div className="app-preview-error">{previewError}</div>}
               {preview && <>
                 <iframe
-                  key={`${preview.uri}-${previewRevision}`}
+                  key={preview.uri}
                   ref={iframeRef}
                   title={`${serverName} ${selected.toolName} preview`}
                   sandbox="allow-scripts"
                   srcDoc={documentHtml}
                   style={{ height: iframeHeight }}
-                  onLoad={() => window.setTimeout(() => sendToolResult(renderSampleRef.current), 60)}
                 />
                 <div className="field app-sample">
                   <label>{t("appLab.sampleLabel")}</label>
                   <textarea rows={9} value={sampleText} onChange={(event) => setSampleText(event.target.value)} />
                   <button className="btn ghost sm" onClick={applySample}>{t("appLab.applySample")}</button>
+                  <button className="btn ghost sm" onClick={replayHostNotifications}>{t("appLab.replayHost")}</button>
                 </div>
               </>}
             </div>
