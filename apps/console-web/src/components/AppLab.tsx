@@ -66,7 +66,7 @@ export default function AppLab({ serverName, diagnostics }: {
 
   useEffect(() => {
     selectedUriRef.current = selected?.upstreamUri ?? null;
-    const sample = selected?.sampleStructuredContent ?? {};
+    const sample = {};
     setSampleText(JSON.stringify(sample, null, 2));
     renderSampleRef.current = sample;
     replayTimersRef.current.forEach(window.clearTimeout);
@@ -158,7 +158,7 @@ export default function AppLab({ serverName, diagnostics }: {
   };
 
   const documentHtml = useMemo(
-    () => preview && selected ? previewDocument(preview.html, selected, selected.sampleStructuredContent) : "",
+    () => preview && selected ? previewDocument(preview.html, selected, renderSampleRef.current) : "",
     [preview, selected]
   );
 
