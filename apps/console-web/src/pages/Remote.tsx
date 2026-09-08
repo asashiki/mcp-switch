@@ -354,6 +354,11 @@ export default function RemotePage() {
               <>
                 <div className="meta" style={{ color: "var(--text-3)", margin: "4px 0" }}>{t("remote.upstreamCfgCaption")}</div>
                 <pre className="cfg-json">{serverConfigJson(s)}</pre>
+            <button className="btn secondary sm" disabled={appLabBusy === s.id || s.status === "offline"}
+              onClick={() => toggleAppLab(s)}>
+              {appLabBusy === s.id ? t("common.loading") : appLab?.serverId === s.id ? t("appLab.close") : t("appLab.open")}
+            </button>
+
               </>
             )}
           </div>
@@ -364,12 +369,11 @@ export default function RemotePage() {
             {s.authMode === "oauth" && s.oauthAuthorized && !s.needsAuth && (
               <button className="btn ghost sm" disabled={busy} onClick={() => authorize(s.id)} title={t("remote.reauthorizeTitle")}>{t("remote.reauthorize")}</button>
             )}
-            <button className="btn ghost sm" onClick={() => setShowCfg(c => c === s.id ? null : s.id)}>
+            <button className="btn ghost sm" onClick={() => {
+              setShowCfg(c => c === s.id ? null : s.id);
+              if (showCfg === s.id && appLab?.serverId === s.id) setAppLab(null);
+            }}>
               {showCfg === s.id ? t("remote.hideConfig") : t("remote.viewConfig")}
-            </button>
-            <button className="btn secondary sm" disabled={appLabBusy === s.id || s.status === "offline"}
-              onClick={() => toggleAppLab(s)}>
-              {appLabBusy === s.id ? t("common.loading") : appLab?.serverId === s.id ? t("appLab.close") : t("appLab.open")}
             </button>
             <button className="btn danger sm" onClick={() => remove(s.id, s.name)}>{t("common.delete")}</button>
           </div>

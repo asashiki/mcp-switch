@@ -4,7 +4,7 @@
 
 MCP Apps 组件失效时，表面现象经常只是“ChatGPT 里一片空白”，实际故障可能出在不同层：工具没有链接资源、`ui://` URI 对不上、资源 MIME 仍是旧值、只实现了 `window.openai`、CSP 漏掉媒体域，或者声明了一个根本不可达的专用 widget origin。
 
-MCP Switch 控制台的「接入」页现在为每个在线上游提供 App Lab。它不会把“Claude 能显示”当成“协议一定正确”，而是分别检查开放 MCP Apps 字段和 ChatGPT 兼容别名。
+开发诊断（原 App Lab）入口已移到「查看配置」里面，日常接入不需要打开。它不会把“Claude 能显示”当成“协议一定正确”，而是分别检查开放 MCP Apps 字段和 ChatGPT 兼容别名。
 
 ## 检查内容
 
@@ -28,10 +28,10 @@ App Lab 默认只显示诊断，不自动执行上游 HTML。点击「加载 san
 - 控制台根据资源声明的 CSP 注入一条额外限制策略；多条 CSP 只会取交集，上游不能用自己的 meta 放宽它；
 - 组件 HTML 最大 512 KiB；
 - App Lab 模拟 `ui/initialize`、tool result 和 size change，不调用真实工具；
-- `structuredContent` 样例由 `outputSchema` 生成，可以在预览旁编辑后重新发送；
+- 预览不再自动注入 schema 生成的假数据；需要粘贴真实工具返回的 `structuredContent` 后发送；
 - 为观察旧组件，sandbox 会提供只含 `toolOutput` 的最小 `window.openai` 兼容对象。
 
-「发送样例」会向现有 iframe 发送结果和兼容 globals，不重载页面；「重放宿主通知」在约 2.5 秒内重复发送 25 次相同数据，用来检查闪烁、音频重建、进度归零和按钮焦点丢失。它不调用真实上游工具，也不会自动给出运行时通过结论。样例里的占位媒体 URL 本来就不保证可播放。
+「发送样例」会向现有 iframe 发送结果和兼容 globals，不重载页面；「重放宿主通知」在约 2.5 秒内重复发送 25 次相同数据，用来检查闪烁、音频重建、进度归零和按钮焦点丢失。它不调用真实上游工具，也不会自动给出运行时通过结论。不再用 `example.com` 假媒体地址制造无意义的播放失败。
 
 这个预览用于检查布局、主题基础和 bridge 数据流，不等价于最终宿主认证。ChatGPT、Claude 可能对专用域审核、文件上传、模态框、host context 和宿主扩展能力有额外差异，因此 canary 上仍需做一次真实客户端测试。
 
