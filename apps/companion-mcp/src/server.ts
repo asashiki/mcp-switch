@@ -1,10 +1,15 @@
-import { loadCharacters, loadConfig } from './config.js';
-import { Companion } from './service.js';
-import { createHttp } from './http.js';
-const config=loadConfig();
-const service=new Companion(config,loadCharacters(config.charactersFile));
-const app=createHttp(service);
-await app.listen({host:config.host,port:config.port});
+import { loadCharacters, loadConfig } from "./config.js";
+import { Companion } from "./service.js";
+import { createHttp } from "./http.js";
+const config = loadConfig();
+const service = new Companion(config, loadCharacters(config.charactersFile));
+const app = createHttp(service);
+await app.listen({ host: config.host, port: config.port });
 void service.worker.kick();
-console.log(`Companion ready: ${config.publicUrl}/admin | MCP: ${config.publicUrl}/mcp`);
-for(const signal of ['SIGINT','SIGTERM'] as const)process.on(signal,()=>{void app.close().then(()=>process.exit(0));});
+console.log(
+  `Companion ready: ${config.publicUrl}/admin | MCP: ${config.publicUrl}/mcp`,
+);
+for (const signal of ["SIGINT", "SIGTERM"] as const)
+  process.on(signal, () => {
+    void app.close().then(() => process.exit(0));
+  });

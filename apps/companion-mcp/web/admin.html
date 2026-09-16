@@ -1,12 +1,380 @@
-<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Companion · 角色设置</title>
-<style>
-:root{font-family:ui-sans-serif,system-ui,sans-serif;color:#303941;background:#f7f8f6;font-synthesis:none;--paper:#fff;--line:#dfe5df;--muted:#65726c;--accent:#3c6557}*{box-sizing:border-box}body{margin:0}header{max-width:1200px;margin:auto;padding:28px 32px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--line)}.brand{font-size:22px;font-weight:700;letter-spacing:-.6px}.brand span{font-weight:400;color:var(--muted);margin-left:16px;font-size:15px}button,select,input,textarea{font:inherit;color:inherit}button{background:var(--accent);color:white;border:1px solid transparent;border-radius:9px;padding:11px 18px;cursor:pointer;font-weight:600}button.secondary{background:var(--paper);border-color:var(--line);color:inherit}button:disabled{opacity:.5;cursor:wait}main{max-width:1200px;margin:0 auto;padding:36px 32px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:38px}h1{font-size:28px;letter-spacing:-.8px;margin:0 0 10px}h2{font-size:17px;margin:0 0 18px}p{line-height:1.65;color:var(--muted)}.intro{margin:0 0 28px}.panel{padding:24px;border:1px solid var(--line);border-radius:14px;background:var(--paper);margin-bottom:18px}label{display:block;font-size:14px;font-weight:600;margin:18px 0 8px}label:first-child{margin-top:0}input,select,textarea{width:100%;background:var(--paper);border:1px solid #ccd6cd;border-radius:8px;padding:11px 12px;outline:none}input:focus,textarea:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px #3c655715}textarea{resize:vertical;line-height:1.65;font-size:14px}.row{display:grid;grid-template-columns:1fr 1fr;gap:16px}.row label{margin-top:0}.row{margin-top:18px}.toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.right{position:sticky;top:24px;align-self:start}.preview{border:0;width:100%;height:470px;background:transparent}.help{font-size:14px;margin:12px 0 0}details{margin-top:20px}summary{cursor:pointer;font-size:14px;padding:8px 0}pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px;line-height:1.6;max-height:300px;overflow:auto}.status{font-size:14px;line-height:1.6;margin:12px 0;color:var(--accent)}.login{max-width:580px;margin:48px auto;padding:24px}.file{font-size:13px;padding:8px}#editor[hidden],#login[hidden]{display:none}.tag{border-radius:20px;background:#e9efe9;padding:6px 12px;font-size:13px;color:#3c6557}@media(max-width:800px){main{grid-template-columns:1fr;padding:24px 18px;gap:12px}.right{position:static}header{padding:22px 18px}.brand span{display:none}.panel{padding:18px}}@media(prefers-color-scheme:dark){:root{color:#e3e7e5;background:#171d1b;--paper:#222b26;--line:#3b4840;--muted:#a1b0a7;--accent:#658c78}input,select,textarea{border-color:#47574b}.tag{background:#2e4135;color:#c2dac8}}
-</style>
-<header><div class="brand">Companion<span>让角色走进对话</span></div><span class="tag">角色设置</span></header>
-<section id="login" class="login" hidden><h1>连接你的角色库</h1><p>输入部署时设置的访问密钥。密钥只保留在当前页面内存中。</p><label for="token">访问密钥</label><input type="password" id="token" autocomplete="off"><button id="connect" style="margin-top:16px">连接</button><p id="login-status" role="status"></p></section>
-<main id="editor" hidden><section><h1>每次见面，都是她。</h1><p class="intro">固定人物与画风，让表情和场景随着对话变化。</p>
-<div class="panel"><label for="character">当前角色</label><select id="character"></select><div class="row"><div><label for="name">名字</label><input id="name"></div><div><label for="model">NAI 模型</label><input id="model"></div></div><label for="characterPrompt">人物 Prompt</label><textarea id="characterPrompt" rows="4"></textarea><label for="stylePrompt">画风 Prompt</label><textarea id="stylePrompt" rows="3"></textarea><label for="negativePrompt">不希望出现的内容 · UC</label><textarea id="negativePrompt" rows="2"></textarea><details><summary>人设与人物 UC</summary><label for="persona">人设（只在角色扮演模式使用）</label><textarea id="persona" rows="3"></textarea><label for="characterNegativePrompt">人物 UC</label><textarea id="characterNegativePrompt" rows="2"></textarea></details></div>
-<div class="panel"><h2>此刻的场景</h2><div class="row"><div><label for="expression">表情</label><select id="expression"></select></div><div><label for="scene">场景</label><select id="scene"></select></div></div><label for="outfit">服装</label><select id="outfit"></select><label for="line">预览台词</label><textarea id="line" rows="2">主人，今晚也在灯塔这里聊一会儿吧。</textarea><label for="action">动作</label><input id="action" placeholder="例如 holding a cup of tea"><label for="composition">构图与光线</label><input id="composition" value="medium shot, eye level, soft window light"><div class="row"><div><label for="portrait">上传此表情立绘</label><input class="file" id="portrait" type="file" accept="image/png,image/jpeg,image/webp"></div><div><label for="background">上传此场景背景</label><input class="file" id="background" type="file" accept="image/png,image/jpeg,image/webp"></div></div><p class="help">立绘推荐透明 PNG。只上传你确认过的素材；生成的 CG 不会覆盖它。</p></div>
-<div class="toolbar"><button id="save">保存并预览</button><button class="secondary" id="export">导出角色配置</button><label style="margin:0"><input id="import" type="file" accept="application/json" hidden><button class="secondary" id="import-button" type="button">导入配置</button></label></div><p id="status" class="status" role="status"></p>
-<details><summary>完整角色配置（表情、服装、场景与生成参数）</summary><textarea id="advanced" rows="18" spellcheck="false"></textarea><button id="apply-advanced" class="secondary">应用 JSON</button></details></section>
-<aside class="right"><h2>聊天中的样子</h2><iframe title="角色场景预览" class="preview" id="preview" src="/stage"></iframe><div class="panel"><h2>插画生成</h2><p id="provider"></p><p>在聊天里说“把这一幕画下来”，AI 会沿用已保存的人物和画风，再补充这次的场景与动作。</p><details><summary>查看本幕 NAI 请求</summary><pre id="prompt"></pre></details></div><p class="help">这里是本地组件预览。ChatGPT / Claude 的最终呈现需要接入后实测。</p></aside></main><!-- SCRIPT --></html>
+<!doctype html>
+<html lang="zh-CN">
+  <meta charset="utf-8" /><meta
+    name="viewport"
+    content="width=device-width,initial-scale=1"
+  /><title>Companion · 角色设置</title>
+  <style>
+    :root {
+      font-family: ui-sans-serif, system-ui, sans-serif;
+      color: #303941;
+      background: #f7f8f6;
+      font-synthesis: none;
+      --paper: #fff;
+      --line: #dfe5df;
+      --muted: #65726c;
+      --accent: #3c6557;
+    }
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0;
+    }
+    header {
+      max-width: 1200px;
+      margin: auto;
+      padding: 28px 32px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--line);
+    }
+    .brand {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.6px;
+    }
+    .brand span {
+      font-weight: 400;
+      color: var(--muted);
+      margin-left: 16px;
+      font-size: 15px;
+    }
+    button,
+    select,
+    input,
+    textarea {
+      font: inherit;
+      color: inherit;
+    }
+    button {
+      background: var(--accent);
+      color: white;
+      border: 1px solid transparent;
+      border-radius: 9px;
+      padding: 11px 18px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    button.secondary {
+      background: var(--paper);
+      border-color: var(--line);
+      color: inherit;
+    }
+    button:disabled {
+      opacity: 0.5;
+      cursor: wait;
+    }
+    main {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 36px 32px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 38px;
+    }
+    h1 {
+      font-size: 28px;
+      letter-spacing: -0.8px;
+      margin: 0 0 10px;
+    }
+    h2 {
+      font-size: 17px;
+      margin: 0 0 18px;
+    }
+    p {
+      line-height: 1.65;
+      color: var(--muted);
+    }
+    .intro {
+      margin: 0 0 28px;
+    }
+    .panel {
+      padding: 24px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: var(--paper);
+      margin-bottom: 18px;
+    }
+    label {
+      display: block;
+      font-size: 14px;
+      font-weight: 600;
+      margin: 18px 0 8px;
+    }
+    label:first-child {
+      margin-top: 0;
+    }
+    input,
+    select,
+    textarea {
+      width: 100%;
+      background: var(--paper);
+      border: 1px solid #ccd6cd;
+      border-radius: 8px;
+      padding: 11px 12px;
+      outline: none;
+    }
+    input:focus,
+    textarea:focus,
+    select:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px #3c655715;
+    }
+    textarea {
+      resize: vertical;
+      line-height: 1.65;
+      font-size: 14px;
+    }
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    .row label {
+      margin-top: 0;
+    }
+    .row {
+      margin-top: 18px;
+    }
+    .toolbar {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .right {
+      position: sticky;
+      top: 24px;
+      align-self: start;
+    }
+    .preview {
+      border: 0;
+      width: 100%;
+      height: 470px;
+      background: transparent;
+    }
+    .help {
+      font-size: 14px;
+      margin: 12px 0 0;
+    }
+    details {
+      margin-top: 20px;
+    }
+    summary {
+      cursor: pointer;
+      font-size: 14px;
+      padding: 8px 0;
+    }
+    pre {
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      font-size: 12px;
+      line-height: 1.6;
+      max-height: 300px;
+      overflow: auto;
+    }
+    .status {
+      font-size: 14px;
+      line-height: 1.6;
+      margin: 12px 0;
+      color: var(--accent);
+    }
+    .login {
+      max-width: 580px;
+      margin: 48px auto;
+      padding: 24px;
+    }
+    .file {
+      font-size: 13px;
+      padding: 8px;
+    }
+    #editor[hidden],
+    #login[hidden] {
+      display: none;
+    }
+    .tag {
+      border-radius: 20px;
+      background: #e9efe9;
+      padding: 6px 12px;
+      font-size: 13px;
+      color: #3c6557;
+    }
+    @media (max-width: 800px) {
+      main {
+        grid-template-columns: 1fr;
+        padding: 24px 18px;
+        gap: 12px;
+      }
+      .right {
+        position: static;
+      }
+      header {
+        padding: 22px 18px;
+      }
+      .brand span {
+        display: none;
+      }
+      .panel {
+        padding: 18px;
+      }
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        color: #e3e7e5;
+        background: #171d1b;
+        --paper: #222b26;
+        --line: #3b4840;
+        --muted: #a1b0a7;
+        --accent: #658c78;
+      }
+      input,
+      select,
+      textarea {
+        border-color: #47574b;
+      }
+      .tag {
+        background: #2e4135;
+        color: #c2dac8;
+      }
+    }
+  </style>
+  <header>
+    <div class="brand">Companion<span>让角色走进对话</span></div>
+    <span class="tag">角色设置</span>
+  </header>
+  <section id="login" class="login" hidden>
+    <h1>连接你的角色库</h1>
+    <p>输入部署时设置的访问密钥。密钥只保留在当前页面内存中。</p>
+    <label for="token">访问密钥</label
+    ><input type="password" id="token" autocomplete="off" /><button
+      id="connect"
+      style="margin-top: 16px"
+    >
+      连接
+    </button>
+    <p id="login-status" role="status"></p>
+  </section>
+  <main id="editor" hidden>
+    <section>
+      <h1>每次见面，都是她。</h1>
+      <p class="intro">固定人物与画风，让表情和场景随着对话变化。</p>
+      <div class="panel">
+        <label for="character">当前角色</label
+        ><select id="character"></select>
+        <div class="row">
+          <div><label for="name">名字</label><input id="name" /></div>
+          <div><label for="model">NAI 模型</label><input id="model" /></div>
+        </div>
+        <label for="characterPrompt">人物 Prompt</label
+        ><textarea id="characterPrompt" rows="4"></textarea
+        ><label for="stylePrompt">画风 Prompt</label
+        ><textarea id="stylePrompt" rows="3"></textarea
+        ><label for="negativePrompt">不希望出现的内容 · UC</label
+        ><textarea id="negativePrompt" rows="2"></textarea>
+        <details>
+          <summary>人设与人物 UC</summary>
+          <label for="persona">人设（只在角色扮演模式使用）</label
+          ><textarea id="persona" rows="3"></textarea
+          ><label for="characterNegativePrompt">人物 UC</label
+          ><textarea id="characterNegativePrompt" rows="2"></textarea>
+        </details>
+      </div>
+      <div class="panel">
+        <h2>此刻的场景</h2>
+        <div class="row">
+          <div>
+            <label for="expression">表情</label
+            ><select id="expression"></select>
+          </div>
+          <div>
+            <label for="scene">场景</label
+            ><select id="scene"></select>
+          </div>
+        </div>
+        <label for="outfit">服装</label
+        ><select id="outfit"></select
+        ><label for="line">预览台词</label
+        ><textarea id="line" rows="2">
+主人，今晚也在灯塔这里聊一会儿吧。</textarea
+        ><label for="action">动作</label
+        ><input id="action" placeholder="例如 holding a cup of tea" /><label
+          for="composition"
+          >构图与光线</label
+        ><input
+          id="composition"
+          value="medium shot, eye level, soft window light"
+        />
+        <div class="row">
+          <div>
+            <label for="portrait">上传此表情立绘</label
+            ><input
+              class="file"
+              id="portrait"
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+            />
+          </div>
+          <div>
+            <label for="background">上传此场景背景</label
+            ><input
+              class="file"
+              id="background"
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+            />
+          </div>
+        </div>
+        <p class="help">
+          立绘推荐透明 PNG。只上传你确认过的素材；生成的 CG 不会覆盖它。
+        </p>
+      </div>
+      <div class="toolbar">
+        <button id="save">保存并预览</button
+        ><button class="secondary" id="export">导出角色配置</button
+        ><label style="margin: 0"
+          ><input
+            id="import"
+            type="file"
+            accept="application/json"
+            hidden
+          /><button class="secondary" id="import-button" type="button">
+            导入配置
+          </button></label
+        >
+      </div>
+      <p id="status" class="status" role="status"></p>
+      <details>
+        <summary>完整角色配置（表情、服装、场景与生成参数）</summary>
+        <textarea id="advanced" rows="18" spellcheck="false"></textarea
+        ><button id="apply-advanced" class="secondary">应用 JSON</button>
+      </details>
+    </section>
+    <aside class="right">
+      <h2>聊天中的样子</h2>
+      <iframe
+        title="角色场景预览"
+        class="preview"
+        id="preview"
+        src="/stage"
+      ></iframe>
+      <div class="panel">
+        <h2>插画生成</h2>
+        <p id="provider"></p>
+        <p>
+          在聊天里说“把这一幕画下来”，AI
+          会沿用已保存的人物和画风，再补充这次的场景与动作。
+        </p>
+        <details>
+          <summary>查看本幕 NAI 请求</summary>
+          <pre id="prompt"></pre>
+        </details>
+      </div>
+      <p class="help">
+        这里是本地组件预览。ChatGPT / Claude 的最终呈现需要接入后实测。
+      </p>
+    </aside>
+  </main>
+  <!-- SCRIPT -->
+</html>
