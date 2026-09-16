@@ -398,3 +398,50 @@ test("real upstream and Switch preserve tools, scenes and UI in modern and legac
     rmSync(f.dir, { recursive: true, force: true });
   }
 });
+
+test("Docker service host is opt-in and does not allow unrelated hosts or origins", async () => {
+  const f = fixture();
+  f.service.config.allowedHosts = ["companion"];
+  const app = createHttp(f.service);
+  try {
+    const headers = { authorization: "Bearer test-secret" };
+    assert.equal(
+      (
+        await app.inject({
+          url: "/api/config",
+          headers: { ...headers, host: "companion:4588" },
+        })
+      ).statusCode,
+      200,
+    );
+    assert.equal(
+      (
+        await app.inject({
+          url: "/api/config",
+          headers: { ...headers, host: "companion.evil.invalid:4588" },
+        })
+      ).statusCode,
+      403,
+    );
+    assert.equal(
+      (
+        await app.inject({
+          url: "/api/config",
+          headers: {
+            ...headers,
+            host: "companion:4588",
+            origin: "https://companion",
+          },
+        })
+      ).statusCode,
+      403,
+    );
+    assert.throws(
+      () => loadConfig({ COMPANION_ALLOWED_HOSTS: "*" }),
+      /exact hostnames/,
+    );
+  } finally {
+    await app.close();
+    rmSync(f.dir, { recursive: true, force: true });
+  }
+});

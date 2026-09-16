@@ -26,6 +26,7 @@ export function createHttp(service: Companion) {
       "localhost",
       "[::1]",
       new URL(cfg.publicUrl).hostname,
+      ...cfg.allowedHosts,
     ];
     if (!validateHostHeader(req.headers.host, allowed).ok)
       return reply.code(403).send({ error: "Host rejected" });

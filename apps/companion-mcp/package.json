@@ -7,6 +7,7 @@
     "dev": "node --import tsx src/server.ts",
     "start": "node --env-file-if-exists=.env dist/server.js",
     "build": "node scripts/build.mjs",
+    "package": "node scripts/package.mjs",
     "typecheck": "tsc --noEmit",
     "test": "node scripts/build.mjs && node --import tsx --test tests/*.test.ts"
   },

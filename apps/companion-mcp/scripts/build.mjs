@@ -1,7 +1,11 @@
 import { build } from "esbuild";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
+const root = fileURLToPath(new URL("..", import.meta.url));
+process.chdir(root);
 await mkdir("dist", { recursive: true });
 await build({
+  absWorkingDir: root,
   entryPoints: ["src/server.ts"],
   outfile: "dist/server.js",
   bundle: true,
@@ -12,6 +16,7 @@ await build({
 });
 for (const name of ["stage", "admin"]) {
   const result = await build({
+    absWorkingDir: root,
     entryPoints: [`web/${name}.ts`],
     bundle: true,
     platform: "browser",

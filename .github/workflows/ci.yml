@@ -38,3 +38,16 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm build
+      - name: Package standalone Companion runtime
+        run: |
+          mkdir -p artifacts
+          node apps/companion-mcp/scripts/package.mjs | tee artifacts/package-build.log
+          node apps/companion-mcp/scripts/verify-package.mjs | tee artifacts/package-smoke.log
+      - name: Upload verified Companion runtime
+        uses: actions/upload-artifact@v4
+        with:
+          name: companion-runtime-${{ github.sha }}
+          path: artifacts/
+          retention-days: 90
+          if-no-files-found: error
+          compression-level: 0

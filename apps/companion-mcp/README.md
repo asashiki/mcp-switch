@@ -3,6 +3,22 @@
 让当前聊天 AI 拥有可以延续的形象、表情和场景，并用 NovelAI 留下这一幕的 CG。
 独立运行的 MCP 服务，位于 MCP Switch monorepo；不向网关内置角色业务，也不需要另配语言模型 API。
 
+## 直接下载运行
+
+[下载独立运行包](../../deliverables/companion-mcp-runtime.tar.gz) · [交付记录与校验值](../../deliverables/README.md) · [工作记录](WORKLOG.md)
+
+运行包已包含服务端依赖和组件，不需要 npm install、pnpm 或编译。需要 Node.js 24+：
+
+```bash
+tar -xzf companion-mcp-runtime.tar.gz
+cd companion-mcp
+cp .env.example .env
+# 编辑 .env，将 COMPANION_TOKEN 改成你自己的随机密钥
+npm start
+```
+
+代码、截图和固定版本运行包都提交在 GitHub 分支中，不依赖聊天沙盒。CI 也会重新打包、启动并验证当前源码，并提供保存 90 天的构建产物；仓库内的运行包与代码不受该 90 天期限影响。
+
 ## 已实现
 
 - **形象 / 角色模式**：前者只加视觉形象，后者才返回保存的人设。
@@ -60,6 +76,8 @@ pnpm start
 ```
 
 上面的 localhost 仅适用于 **Switch 与 Companion 都作为宿主机进程运行**；两者在 Docker 时使用共享网络服务名，或配置可达的宿主机地址。不要把容器自己的 localhost 当成另一个容器。
+
+使用 `http://companion:4588/mcp` 这样的 Docker 服务地址时，在 Companion 设置 `COMPANION_ALLOWED_HOSTS=companion`。它仅放行精确主机名，仍要求 Bearer 密钥，不会开放任意 Host 或跨域设置页请求。
 
 同步工具后，在 Switch **明确开启并授权写入工具** `open_companion`、`perform_turn`、`request_illustration`（网关默认不会启用新的写工具），再给目标 agent 开可见性。其余读取工具可分别授权。不要把写操作伪装成 read-only 来跳过授权。
 

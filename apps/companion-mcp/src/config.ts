@@ -99,10 +99,21 @@ export function loadConfig(env = process.env) {
   const host = env.COMPANION_HOST || "127.0.0.1";
   if (!["127.0.0.1", "localhost", "::1"].includes(host) && !env.COMPANION_TOKEN)
     throw new Error("COMPANION_TOKEN required for non-loopback binding");
+  const allowedHosts = (env.COMPANION_ALLOWED_HOSTS || "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+  for (const value of allowedHosts) {
+    if (!/^[a-zA-Z0-9.-]+$/.test(value) && value !== "[::1]")
+      throw new Error(
+        "COMPANION_ALLOWED_HOSTS must contain exact hostnames, without ports or wildcards",
+      );
+  }
   return {
     port,
     host,
     publicUrl,
+    allowedHosts,
     token: env.COMPANION_TOKEN || "",
     naiToken: env.NOVELAI_API_TOKEN || "",
     dataDir: resolve(env.COMPANION_DATA_DIR || "./data/companion"),
