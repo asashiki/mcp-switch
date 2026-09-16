@@ -1,6 +1,6 @@
 # Companion MCP 工作记录
 
-本文件保存可复核的方案理由、实现进度、发现的问题、测试结果和下一步入口。代码、截图和运行包保存在 GitHub；临时沙盒清空后，直接从本分支恢复。
+本文件保存可复核的方案理由、实现进度、发现的问题、测试结果和下一步入口。代码、截图保存在 Git 分支，运行包保存在 GitHub Actions；临时沙盒清空后，直接从本分支恢复。
 
 ## 2026-09-16：第一阶段
 
@@ -28,7 +28,7 @@
 
 增加 scripts/verify-package.mjs：将包解压至独立临时目录，移除 NODE_PATH 和 NODE_OPTIONS，在没有 node_modules 的条件下实测启动、认证、组件读取、MCP 调用、NAI Prompt 预览、禁用真实付费生成和重启恢复。已通过。
 
-CI 会重新打包并执行相同验证，上传运行包、校验值与打包/运行日志，保存 90 天。另外将一份验证后的固定版本运行包提交至仓库 deliverables/，避免用户必须依赖临时路径或限时 Actions 产物。
+CI 会重新打包并执行相同验证，上传运行包、校验值与打包/运行日志，保存 90 天。原计划另将固定运行包提交至仓库，但二进制上传期间连接中断、执行环境离线，该步骤未完成。已核实 Actions 第 21 次运行成功，运行包确实存在，未过期，保留至 2026-12-15。deliverables/README.md 保存实际下载入口与恢复说明。
 
 ### 仍需真实账户验证
 
@@ -44,4 +44,12 @@ git clone --branch feat/companion-mcp https://github.com/asashiki/mcp-switch.git
 cd mcp-switch
 ```
 
-先读本文件，再读 VALIDATION.md。源码在 src/，网页在 web/，示例 Prompt 在 examples/，自动测试在 tests/，三张截图在 docs/screenshots/，可下载包在根目录 deliverables/。PR：https://github.com/asashiki/mcp-switch/pull/9。
+先读本文件，再读 VALIDATION.md。源码在 src/，网页在 web/，示例 Prompt 在 examples/，自动测试在 tests/，三张截图在 docs/screenshots/，可下载包的入口在根目录 deliverables/README.md。PR：https://github.com/asashiki/mcp-switch/pull/9。
+
+## 中断后远端核实
+
+源码提交：79b24531980349340d68e481e2ed1eb2271ad3c1。
+GitHub CI #21：类型检查、全部测试、构建、Compose 校验、运行包独立验证、上传产物全部成功。
+检查记录：https://github.com/asashiki/mcp-switch/actions/runs/35131018026
+运行包：https://github.com/asashiki/mcp-switch/actions/runs/35131018026/artifacts/10461107567
+当前执行环境离线；以上结论来自 GitHub API 返回的提交、任务步骤和产物记录。实际账户联调仍未完成。

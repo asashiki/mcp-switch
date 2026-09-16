@@ -5,7 +5,7 @@
 
 ## 直接下载运行
 
-[下载独立运行包](../../deliverables/companion-mcp-runtime.tar.gz) · [交付记录与校验值](../../deliverables/README.md) · [工作记录](WORKLOG.md)
+[下载已验证运行包（GitHub 登录后下载）](https://github.com/asashiki/mcp-switch/actions/runs/35131018026/artifacts/10461107567) · [交付记录与校验值](../../deliverables/README.md) · [工作记录](WORKLOG.md)
 
 运行包已包含服务端依赖和组件，不需要 npm install、pnpm 或编译。需要 Node.js 24+：
 
@@ -17,7 +17,7 @@ cp .env.example .env
 npm start
 ```
 
-代码、截图和固定版本运行包都提交在 GitHub 分支中，不依赖聊天沙盒。CI 也会重新打包、启动并验证当前源码，并提供保存 90 天的构建产物；仓库内的运行包与代码不受该 90 天期限影响。
+先解压下载的 Actions ZIP，里面包含 tar.gz、SHA256SUMS 和验证日志。当前运行包保留至 2026-12-15；源码、截图、构建脚本与工作记录长期保存在 Git 分支中。CI 已完成打包、独立启动验证和上传。手动将压缩包提交进仓库的操作因连接中断未完成，不应认为仓库中已有该二进制文件。
 
 ## 已实现
 
