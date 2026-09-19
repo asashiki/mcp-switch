@@ -1,0 +1,18 @@
+services:
+  companion:
+    build:
+      context: ../..
+      dockerfile: apps/companion-mcp/Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      COMPANION_HOST: 0.0.0.0
+      COMPANION_PORT: 4588
+      COMPANION_DATA_DIR: /data
+      COMPANION_CHARACTERS: ./examples/characters.json
+    ports:
+      - "127.0.0.1:4588:4588"
+    volumes:
+      - companion-data:/data
+volumes:
+  companion-data:

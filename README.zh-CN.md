@@ -135,6 +135,8 @@ https://<你的 MCP_PUBLIC_URL>/mcp
 
 ## 文档
 
+- [Companion MCP：角色演出与 NovelAI CG](apps/companion-mcp/README.md) —— 独立服务、角色配置和接入说明。
+
 - [VPS 部署交接单](docs/VPS-DEPLOY.zh-CN.md) —— 可以直接交给服务器上的 AI 执行。
 - [使用手册](docs/manual.md) —— 控制台操作。
 - [安全升级与回滚](docs/deployment-and-upgrade.zh-CN.md) —— 并行部署、验证与回滚。

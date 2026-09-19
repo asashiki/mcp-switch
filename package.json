@@ -12,12 +12,12 @@
   },
   "scripts": {
     "dev": "concurrently -n gateway,console -c yellow,cyan \"pnpm --filter @mcp-switch/mcp-gateway dev\" \"pnpm --filter @mcp-switch/console-web dev\"",
-    "build": "pnpm --filter @mcp-switch/console-web build && pnpm --filter @mcp-switch/mcp-gateway build",
+    "build": "pnpm --filter @mcp-switch/console-web build && pnpm --filter @mcp-switch/mcp-gateway build && pnpm --filter @mcp-switch/companion-mcp build",
     "build:services": "pnpm --filter @mcp-switch/console-web build && pnpm --filter @mcp-switch/mcp-gateway build",
     "typecheck": "pnpm -r typecheck",
     "smoke": "pnpm --filter @mcp-switch/mcp-gateway smoke",
     "check:remote": "pnpm --filter @mcp-switch/mcp-gateway check:remote",
-    "test": "pnpm test:webmcp && pnpm --filter @mcp-switch/mcp-gateway test",
+    "test": "pnpm test:webmcp && pnpm --filter @mcp-switch/mcp-gateway test && pnpm --filter @mcp-switch/companion-mcp test",
     "test:webmcp": "node --import tsx --test apps/console-web/src/webmcp/control-plane.test.ts"
   },
   "devDependencies": {
