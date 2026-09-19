@@ -91,14 +91,19 @@ export function loadConfig(env = process.env) {
     .min(1)
     .max(65535)
     .parse(env.COMPANION_PORT ?? "4588");
-  const publicUrl = new URL(
+  const mediaUrl = new URL(
     env.COMPANION_PUBLIC_URL || `http://127.0.0.1:${port}`,
-  ).origin;
-  if (!["http:", "https:"].includes(new URL(publicUrl).protocol))
+  );
+  if (mediaUrl.username || mediaUrl.password || mediaUrl.pathname !== "/" || mediaUrl.search || mediaUrl.hash)
+    throw new Error("COMPANION_PUBLIC_URL must be an origin without credentials, path, query or fragment");
+  const publicUrl = mediaUrl.origin;
+  if (!["http:", "https:"].includes(mediaUrl.protocol))
     throw new Error("Invalid public URL");
   const host = env.COMPANION_HOST || "127.0.0.1";
   if (!["127.0.0.1", "localhost", "::1"].includes(host) && !env.COMPANION_TOKEN)
     throw new Error("COMPANION_TOKEN required for non-loopback binding");
+  if (!["127.0.0.1", "localhost", "::1"].includes(host) && !env.COMPANION_PUBLIC_URL)
+    throw new Error("COMPANION_PUBLIC_URL required for non-loopback binding");
   const allowedHosts = (env.COMPANION_ALLOWED_HOSTS || "")
     .split(",")
     .map((value) => value.trim())

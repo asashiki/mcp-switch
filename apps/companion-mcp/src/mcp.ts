@@ -8,7 +8,7 @@ import { readFileSync } from "node:fs";
 import { Companion } from "./service.js";
 import { id } from "./config.js";
 
-export const UI_URI = "ui://companion/stage-v1.html";
+export const UI_URI = "ui://companion/stage-v2.html";
 const uuid = z.string().uuid(),
   event = z.string().min(1).max(120),
   revision = z.number().int().nonnegative();

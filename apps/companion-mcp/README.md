@@ -101,7 +101,7 @@ pnpm start
 docker compose -f apps/companion-mcp/compose.yaml up -d --build
 ```
 
-给 Companion 配一个 HTTPS 反向代理，转发到宿主 `127.0.0.1:4588`，保留原始 Host。代理整个服务，包括 `/mcp`、`/admin`、`/api/*`、`/stage`、`/media/*`、`/jobs/*`。图像和任务地址必须能被宿主 iframe 访问，不能填写 VPS 的 localhost。媒体和任务链接使用七天有效的签名；历史链接过期后调用 `get_scene` 或 `get_illustration` 恢复。签名 URL 是限时访问凭据，不要公开转发。
+给 Companion 配一个 HTTPS 反向代理，转发到宿主 `127.0.0.1:4588`，保留原始 Host。代理整个服务，包括 `/mcp`、`/admin`、`/api/*`、`/stage`、`/media/*`、`/jobs/*`。图像和任务地址必须能被宿主 iframe 访问，不能填写 VPS 的 localhost。`COMPANION_PUBLIC_URL` 只接受完整 origin，不接受路径、查询参数或用户名密码；非回环监听必须显式配置此项。媒体和任务链接使用七天有效的签名；历史链接过期后调用 `get_scene` 或 `get_illustration` 恢复。签名 URL 是限时访问凭据，不要公开转发。
 
 **认证范围**：当前是单人自托管。所有持有同一个服务密钥的连接属于同一个用户，不能把这当成多租户隔离。服务内部会检查 owner，但尚未接入外部多用户身份映射。NAI Token 与 Companion 的访问密钥分开，均不下发组件。
 

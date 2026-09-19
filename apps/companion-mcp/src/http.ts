@@ -47,6 +47,7 @@ export function createHttp(service: Companion) {
       .header("Referrer-Policy", "no-referrer");
     if (publicMedia) {
       reply.header("Access-Control-Allow-Origin", "*");
+      reply.header("Cross-Origin-Resource-Policy", "cross-origin");
       reply.header("Cache-Control", "private, no-store");
     }
     if (
