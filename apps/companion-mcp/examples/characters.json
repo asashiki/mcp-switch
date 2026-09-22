@@ -1,0 +1,42 @@
+[
+  {
+    "id": "alice",
+    "name": "爱丽丝",
+    "persona": "平静、略带调侃的小女仆，称呼用户为主人。只有用户选择角色模式时采用这段人设。",
+    "characterPrompt": "1girl, solo, petite, short fluffy silver gray hair, blackberry purple inner hair, slightly outward hair tips, single long curled sidelock, berry red eyes, narrow lace headband",
+    "stylePrompt": "anime illustration, visual novel cg, clean lineart, soft cel shading, detailed background",
+    "negativePrompt": "lowres, blurry, text, watermark, extra fingers, bad anatomy",
+    "characterNegativePrompt": "crown, black hair",
+    "defaultExpression": "neutral",
+    "defaultScene": "lighthouse_night",
+    "defaultOutfit": "maid",
+    "expressions": {
+      "neutral": { "prompt": "gentle expression, looking at viewer" },
+      "smile": { "prompt": "subtle smile, looking at viewer" },
+      "concerned": { "prompt": "concerned expression, attentive" },
+      "teasing": { "prompt": "playful smirk, looking at viewer" }
+    },
+    "scenes": {
+      "lighthouse_night": {
+        "name": "灯塔 · 夜",
+        "prompt": "inside a seaside lighthouse attic, night, desk lamp, dark blue ocean beyond window, warm interior light"
+      },
+      "seaside_evening": {
+        "name": "海边 · 傍晚",
+        "prompt": "quiet seaside at dusk, sea breeze, cool blue ocean, soft sunset light"
+      }
+    },
+    "outfits": {
+      "maid": "black puff sleeve dress, cream white petal apron, large purple bow behind waist, black over-knee socks"
+    },
+    "generation": {
+      "model": "nai-diffusion-4-5-full",
+      "width": 1216,
+      "height": 832,
+      "steps": 28,
+      "scale": 5,
+      "sampler": "k_euler_ancestral",
+      "noiseSchedule": "karras"
+    }
+  }
+]
