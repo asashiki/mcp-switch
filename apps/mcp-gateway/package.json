@@ -5,13 +5,14 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "build": "tsup src/server.ts src/cli/agents.ts src/cli/console-admin.ts src/cli/remote-check.ts --format esm && node scripts/fix-node-sqlite.mjs",
+    "build": "tsup src/server.ts src/cli/agents.ts src/cli/console-admin.ts src/cli/remote-check.ts src/cli/savepoint.ts --format esm && node scripts/fix-node-sqlite.mjs",
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test src/mcp-gateway.test.ts src/auth/tokens.test.ts src/auth/store.test.ts src/auth/routes.test.ts src/registry/app-diagnostics.test.ts src/cli/remote-check.test.ts",
+    "test": "node --import tsx --test src/mcp-gateway.test.ts src/auth/tokens.test.ts src/auth/store.test.ts src/auth/routes.test.ts src/registry/app-diagnostics.test.ts src/cli/remote-check.test.ts src/savepoint/store.test.ts src/savepoint/server.test.ts",
     "smoke": "tsx src/cli/smoke-test.ts",
     "check:remote": "tsx src/cli/remote-check.ts",
-    "agents": "tsx src/cli/agents.ts"
+    "agents": "tsx src/cli/agents.ts",
+    "savepoint": "tsx src/cli/savepoint.ts"
   },
   "dependencies": {
     "@mcp-switch/config": "workspace:*",

@@ -3,6 +3,7 @@ import test from "node:test";
 import type { RemoteMcpServer } from "@mcp-switch/schemas";
 import { MCP_APP_MIME_TYPE } from "./proxy-metadata.js";
 import { appHtmlFromContents, diagnoseMcpApps } from "./app-diagnostics.js";
+import { inspectAppHtml } from "./app-html-diagnostics.js";
 
 function server(overrides: Partial<RemoteMcpServer> = {}): RemoteMcpServer {
   return {
@@ -143,4 +144,57 @@ test("preview extraction accepts text/blob and enforces the size ceiling", () =>
     () => appHtmlFromContents({ contents: [{ uri: "ui://x", text: "x".repeat(20) }] }, "ui://x", 10),
     /exceeds 10 bytes/
   );
+});
+
+test("HTML inspection distinguishes media resources from network connection CSP", async () => {
+  const result = await diagnoseMcpApps(server(), async (uri) => ({ contents: [{
+    uri, mimeType: MCP_APP_MIME_TYPE,
+    text: '<audio autoplay src="https://cdn.example/song.mp3?token=secret"></audio><meta name="viewport" content="width=1024">'
+  }] }));
+  const codes = new Set(result.checks.map((c) => c.code));
+  assert.ok(codes.has("media-autoplay"));
+  assert.ok(codes.has("asset-csp-origin-missing"));
+  assert.ok(codes.has("viewport-fixed-width"));
+  assert.ok(codes.has("media-runtime-check"));
+  assert.equal(result.runtimeVerified, false);
+  assert.equal(JSON.stringify(result.checks).includes("token=secret"), false);
+  const checks = inspectAppHtml('<audio src="https://music.example/a.mp3">', {
+    connectDomains: ["https://music.example"], resourceDomains: [], frameDomains: []
+  });
+  assert.ok(checks.some((c) => c.code === "asset-csp-origin-missing" && c.message.includes("resourceDomains")));
+});
+
+test("literal asset hints respect resource and frame origins without claiming runtime success", () => {
+  const checks = inspectAppHtml('<audio controls src="https://music.example/a.mp3"><iframe src="https://frame.example/x"></iframe><meta name="viewport" content="width=device-width"><style>body{color:var(--color-text-primary)}</style>', {
+    resourceDomains: ["https://music.example/"], frameDomains: ["https://frame.example"], connectDomains: []
+  });
+  assert.equal(checks.some((c) => c.severity === "warning" || c.severity === "error" || c.severity === "pass"), false);
+  assert.ok(checks.some((c) => c.code === "media-runtime-check"));
+});
+
+test("HTML hints ignore comments/raw script text and cap large resource lists", () => {
+  const csp = { connectDomains: [], resourceDomains: [], frameDomains: [] };
+  const ignored = inspectAppHtml('<!-- <audio autoplay src="https://bad.example"> --><script>const example = `<audio autoplay>`;</script>', csp);
+  assert.equal(ignored.some((c) => c.code === "media-autoplay"), false);
+  const many = inspectAppHtml(Array.from({ length: 100 }, (_, i) => `<img src="https://asset${i}.example/x">`).join(""), csp);
+  assert.equal(many.length, 17);
+  assert.equal(many.at(-1)?.code, "html-findings-truncated");
+  const wildcard = inspectAppHtml('<img src="https://a.example/x">', { ...csp, resourceDomains: ["https://*.example"] });
+  assert.ok(wildcard.some((c) => c.code === "asset-csp-wildcard-unverified" && c.severity === "info"));
+});
+
+test("large catalogs truncate findings without losing late errors or failing report validation", async () => {
+  const base = server();
+  const tools = Array.from({ length: 100 }, (_, i) => ({ ...base.tools[0]!, name: `tool_${i}` }));
+  tools.push({ ...base.tools[0]!, name: "last_broken", meta: { ui: { resourceUri: "ui://missing" }, "openai/outputTemplate": "ui://missing" } });
+  let reads = 0;
+  const result = await diagnoseMcpApps(server({ tools }), async (uri) => {
+    reads++;
+    return { contents: [{ uri, mimeType: MCP_APP_MIME_TYPE, text: "<main>Static</main>" }] };
+  });
+  assert.equal(reads, 1);
+  assert.equal(result.checks.length, 512);
+  assert.equal(result.checks.at(-1)?.code, "diagnostics-truncated");
+  assert.equal(result.status, "error");
+  assert.equal(result.components.length, 101);
 });
