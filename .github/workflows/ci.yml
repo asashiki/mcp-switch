@@ -39,7 +39,9 @@ jobs:
       - run: pnpm test
       - run: pnpm build
       - name: Package standalone Companion runtime
+        shell: bash
         run: |
+          set -euo pipefail
           mkdir -p artifacts
           node apps/companion-mcp/scripts/package.mjs | tee artifacts/package-build.log
           node apps/companion-mcp/scripts/verify-package.mjs | tee artifacts/package-smoke.log

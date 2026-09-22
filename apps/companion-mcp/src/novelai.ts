@@ -148,11 +148,17 @@ export class Worker {
     if (!this.active)
       this.active = this.run().finally(() => {
         this.active = undefined;
+        // A request may enqueue between run() finishing and this microtask.
+        // Drain that work without replaying completed or uncertain requests.
+        if (
+          this.config.generationEnabled && this.config.naiToken &&
+          this.store.jobs().some((job) => job.status === "queued")
+        ) void this.kick();
       });
     return this.active;
   }
   async idle() {
-    await this.active;
+    while (this.active) await this.active;
   }
   private async run() {
     if (!this.config.generationEnabled || !this.config.naiToken) return;

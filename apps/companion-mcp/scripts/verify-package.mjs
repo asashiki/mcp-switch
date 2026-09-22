@@ -156,9 +156,10 @@ try {
       },
     });
     assert.equal(blocked.isError, true);
-    const resource = await c.readResource({
-      uri: "ui://companion/stage-v1.html",
-    });
+    const stageTool = catalog.tools.find((tool) => tool.name === "perform_turn");
+    const uri = stageTool?._meta?.ui?.resourceUri;
+    assert.equal(typeof uri, "string", "stage resource must be advertised");
+    const resource = await c.readResource({ uri });
     assert.match(resource.contents[0].text, /角色场景/);
   } finally {
     await c.close();

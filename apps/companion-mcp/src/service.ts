@@ -198,7 +198,9 @@ export class Companion {
       this.config.dailyLimit,
     );
     void this.worker.kick();
-    return { scene: this.view(s), job: this.jobView(job) };
+    // The deduplication record contains the initial enqueue snapshot. Read the
+    // live job so replayed requests cannot regress completed/failed jobs to queued.
+    return { scene: this.view(s), job: this.jobView(this.store.job(owner, job.id)) };
   }
   async close() {
     await this.worker.idle();

@@ -144,6 +144,7 @@ test("generation is single-flight, duplicate-safe, budget bounded and never chan
     const first = f.service.request("personal", a);
     const duplicate = f.service.request("personal", a);
     assert.equal(first.job!.id, duplicate.job!.id);
+    assert.equal(duplicate.job!.status, "running");
     f.service.store.perform("personal", {
       sessionId: s.sessionId,
       eventId: "next",
@@ -154,6 +155,9 @@ test("generation is single-flight, duplicate-safe, budget bounded and never chan
     release();
     await f.service.worker.idle();
     assert.equal(calls, 1);
+    const completed = f.service.request("personal", a);
+    assert.equal(completed.job!.status, "succeeded");
+    assert.ok(completed.job!.imageUrl);
     assert.equal(
       f.service.store.scene("personal", s.sessionId).sceneId,
       "seaside_evening",
@@ -187,6 +191,28 @@ test("generation is single-flight, duplicate-safe, budget bounded and never chan
     );
   } finally {
     release();
+    await f.close();
+  }
+});
+test("failed generation retries return the current failure without another provider call", async () => {
+  let calls = 0;
+  const f = fixture(async () => {
+    calls++;
+    throw new Error("NovelAI HTTP 503");
+  });
+  try {
+    const scene = f.service.store.open("personal", "start", chars[0]!, "avatar");
+    const input = { sessionId: scene.sessionId, revision: 0, eventId: "failure", composition: "", generate: true };
+    const first = f.service.request("personal", input);
+    await f.service.worker.idle();
+    const replay = f.service.request("personal", input);
+    assert.equal(replay.job!.id, first.job!.id);
+    assert.equal(replay.job!.status, "failed");
+    assert.match(replay.job!.error!, /503/);
+    await f.service.worker.idle();
+    assert.equal(calls, 1);
+    assert.equal(f.service.store.jobs().length, 1);
+  } finally {
     await f.close();
   }
 });
