@@ -6,7 +6,7 @@ import { resolve } from "node:path";
 // elsewhere doesn't leave a chunk with `from "sqlite"` that Node can't
 // resolve at runtime.
 const distDir = resolve(process.cwd(), "dist");
-const files = (await readdir(distDir)).filter((name) => name.endsWith(".js"));
+const files = (await readdir(distDir, { recursive: true })).filter((name) => name.endsWith(".js"));
 
 let touched = 0;
 for (const name of files) {
