@@ -13,11 +13,20 @@ import {
   proxyResourceUri,
   resourceUrisFromMeta
 } from "./proxy-metadata.js";
+import { inspectAppHtml } from "./app-html-diagnostics.js";
 
 type Check = McpAppDiagnostics["checks"][number];
 type Csp = McpAppDiagnostics["components"][number]["csp"];
 
 const EMPTY_CSP: Csp = { connectDomains: [], resourceDomains: [], frameDomains: [] };
+
+function capChecks(checks: Check[], limit: number): Check[] {
+  if (checks.length <= limit) return checks;
+  return [...checks.slice(0, limit - 1), {
+    severity: "info", code: "diagnostics-truncated",
+    message: `${checks.length - limit + 1} additional checks omitted from this list. Overall status still accounts for all checks.`
+  }];
+}
 
 function record(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value)
@@ -216,12 +225,14 @@ export async function diagnoseMcpApps(
     let normalizedMimeType = normalizeAppMimeType(mimeType, true) ?? null;
     let bridge: McpAppDiagnostics["components"][number]["bridge"] = "unreadable";
     let htmlBytes: number | null = null;
+    let html: string | null = null;
 
     if (!resource) {
       add({ severity: "error", code: "resource-missing", message: "Linked ui:// resource is missing from resources/list." });
     } else {
       try {
         const content = appHtmlFromContents(await readOnce(uri), uri);
+        html = content.html;
         resourceMeta = { ...(resource.meta ?? {}), ...(content.meta ?? {}) };
         mimeType = content.mimeType ?? mimeType;
         normalizedMimeType = normalizeAppMimeType(mimeType, true) ?? null;
@@ -260,6 +271,9 @@ export async function diagnoseMcpApps(
 
     const csp = cspFromMeta(resourceMeta);
     componentChecks.push(...validateCsp(csp, tool.name, uri));
+    if (html !== null) {
+      for (const check of inspectAppHtml(html, csp)) add(check);
+    }
     const dedicatedDomain = dedicatedDomainFromMeta(resourceMeta);
     if (dedicatedDomain) {
       add(validHttpsOrigin(dedicatedDomain)
@@ -289,7 +303,7 @@ export async function diagnoseMcpApps(
       sampleStructuredContent: hasOutputSchema
         ? sampleFromSchema(tool.outputSchema!, tool.outputSchema!) ?? null
         : null,
-      checks: componentChecks
+      checks: capChecks(componentChecks, 128)
     });
   }
 
@@ -332,7 +346,7 @@ export async function diagnoseMcpApps(
     appResourceCount: appResources.length,
     namespaceIsolation: true,
     components,
-    checks
+    checks: capChecks(checks, 512)
   });
 }
 

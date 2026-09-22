@@ -38,3 +38,7 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm build
+      - name: Verify built Savepoint stdio server and export
+        run: node --import tsx --test apps/mcp-gateway/src/savepoint/server.test.ts
+        env:
+          SAVEPOINT_TEST_CLI: ${{ github.workspace }}/apps/mcp-gateway/dist/cli/savepoint.js

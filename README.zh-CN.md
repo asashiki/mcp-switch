@@ -135,6 +135,8 @@ https://<你的 MCP_PUBLIC_URL>/mcp
 
 ## 文档
 
+- [Agent Savepoint](docs/agent-savepoint.zh-CN.md) —— 可选的任务存档 MCP：保存文件本体、恢复历史版本、生成 Agent 交接包。
+- [Switch Inspector 检查范围](docs/switch-inspector.zh-CN.md) —— 媒体、CSP、移动端和主题的静态诊断及宿主实测清单。
 - [VPS 部署交接单](docs/VPS-DEPLOY.zh-CN.md) —— 可以直接交给服务器上的 AI 执行。
 - [使用手册](docs/manual.md) —— 控制台操作。
 - [安全升级与回滚](docs/deployment-and-upgrade.zh-CN.md) —— 并行部署、验证与回滚。
